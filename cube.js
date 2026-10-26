@@ -1977,10 +1977,15 @@
 
       // Toggle notation controls
       const toggleControlsBtn = document.getElementById('toggleControlsBtn');
-      toggleControlsBtn.addEventListener('click', () => {
-        const vControls = document.getElementById('virtualControls');
-        vControls.classList.toggle('collapsed');
-      });
+      if (toggleControlsBtn) {
+        toggleControlsBtn.addEventListener('click', () => {
+          const vControls = document.getElementById('virtualControls');
+          const isCollapsed = vControls.classList.toggle('collapsed');
+          toggleControlsBtn.classList.toggle('active', !isCollapsed);
+          const app = document.getElementById('app');
+          if (app) app.classList.toggle('virtual-controls-open', !isCollapsed);
+        });
+      }
 
       // Timer Controls
       document.getElementById('timerToggleBtn').addEventListener('click', () => {
@@ -2126,6 +2131,25 @@
             this.showToast(isHidden ? 'Экранный джойстик включен' : 'Экранный джойстик скрыт');
           }
         });
+      }
+
+      // D-Pad Dock side switch (left / right)
+      const dpadDockBtn = document.getElementById('dpadDockBtn');
+      if (dpadDockBtn) {
+        dpadDockBtn.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const dpad = document.getElementById('mobileDpad');
+          if (dpad) {
+            const isLeft = dpad.classList.toggle('dock-left');
+            localStorage.setItem('gan_dpad_side', isLeft ? 'left' : 'right');
+            this.showToast(isLeft ? 'Джойстик перемещен влево ◀' : 'Джойстик перемещен вправо ▶');
+          }
+        });
+        if (localStorage.getItem('gan_dpad_side') === 'left') {
+          const dpad = document.getElementById('mobileDpad');
+          if (dpad) dpad.classList.add('dock-left');
+        }
       }
 
       // Keyboard Controls

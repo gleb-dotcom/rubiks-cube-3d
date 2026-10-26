@@ -130,6 +130,7 @@
 
       <!-- Mobile On-Screen Directional D-Pad (Экранный стрелочный джойстик) -->
       <div id="mobileDpad" class="mobile-dpad" aria-label="Экранный стрелочный джойстик">
+        <button class="dpad-dock-btn" id="dpadDockBtn" title="Переключить сторону (влево/вправо)" aria-label="Сменить сторону">↔</button>
         <button class="dpad-btn dpad-up" data-dpad="ArrowUp" aria-label="Повернуть выбранную грань вверх" title="Вверх (⬆️)">
           <span class="dpad-arrow">▲</span>
         </button>
@@ -220,7 +221,7 @@
       </div>
 
       <!-- Quick Virtual Face Rotation Buttons -->
-      <div class="virtual-controls" id="virtualControls">
+      <div class="virtual-controls collapsed" id="virtualControls">
         <div class="virtual-row">
           <span class="row-label">Нотация:</span>
           <button class="turn-btn" data-move="U" title="Желтая грань по часовой">U (Желтый)</button>
