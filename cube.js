@@ -274,16 +274,26 @@
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
       this.renderer.toneMappingExposure = 1.05;
 
-      // OrbitControls for unrestricted 360-degree rotation
+      // OrbitControls for unrestricted 360-degree rotation and deep zoom
       this.controls = new THREE.OrbitControls(this.camera, canvas);
       this.controls.enableDamping = true;
       this.controls.dampingFactor = 0.07;
       this.controls.rotateSpeed = 0.9;
-      this.controls.enablePan = false;
-      this.controls.minDistance = 3.5;
-      this.controls.maxDistance = 30;
+      this.controls.enablePan = true;
+      this.controls.minDistance = 2.0;
+      this.controls.maxDistance = 150.0; // Allow zooming out way further
+      this.controls.zoomSpeed = 1.3;
       this.controls.minPolarAngle = 0.01;
       this.controls.maxPolarAngle = Math.PI - 0.01;
+      this.controls.mouseButtons = {
+        LEFT: THREE.MOUSE.ROTATE,
+        MIDDLE: THREE.MOUSE.DOLLY,
+        RIGHT: THREE.MOUSE.ROTATE
+      };
+      this.controls.touches = {
+        ONE: THREE.TOUCH.ROTATE,
+        TWO: THREE.TOUCH.DOLLY_PAN
+      };
 
       // Luxury Studio Lighting Setup
       const ambientLight = new THREE.AmbientLight(0xffffff, 0.82);
@@ -347,7 +357,9 @@
 
     setDefaultCamera() {
       const dist = this.currentSize === 'pyraminx' ? 9.5 : (this.currentSize * 2.3 + 3.2);
-      this.camera.position.set(dist * 0.9, dist * 0.8, dist * 1.2);
+      // Clearly elevated camera: Yellow is prominent on TOP, Green in front, White underneath
+      this.camera.position.set(dist * 0.85, dist * 0.75, dist * 1.25);
+      this.camera.up.set(0, 1, 0);
       this.camera.lookAt(0, 0, 0);
       if (this.controls) {
         this.controls.target.set(0, 0, 0);
@@ -355,20 +367,51 @@
       }
     }
 
+    zoomCamera(delta) {
+      const dir = new THREE.Vector3();
+      this.camera.getWorldDirection(dir);
+      this.camera.position.addScaledVector(dir, -delta);
+      this.controls.update();
+    }
+
     setCameraView(viewName) {
       const dist = this.currentSize === 'pyraminx' ? 9.5 : (this.currentSize * 2.3 + 3.2);
       let target = new THREE.Vector3();
 
       switch (viewName) {
-        case 'top': target.set(0, dist * 1.4, 0.001); this.selectFace('+y'); break; // Yellow
-        case 'bottom': target.set(0, -dist * 1.4, 0.001); this.selectFace('-y'); break; // White
-        case 'front': target.set(0, 0, dist * 1.4); this.selectFace('+z'); break; // Green
-        case 'back': target.set(0, 0, -dist * 1.4); this.selectFace('-z'); break; // Blue
-        case 'right': target.set(dist * 1.4, 0, 0); this.selectFace('+x'); break; // Red
-        case 'left': target.set(-dist * 1.4, 0, 0); this.selectFace('-x'); break; // Orange
+        case 'top':
+          // Look down at Yellow face (slight z offset avoids gimbal lock)
+          target.set(0, dist * 1.35, 0.05);
+          this.selectFace('+y');
+          break;
+        case 'bottom':
+          // Look up at White face
+          target.set(0, -dist * 1.35, 0.05);
+          this.selectFace('-y');
+          break;
+        case 'front':
+          // Front Green face with Yellow clearly visible on top
+          target.set(0, dist * 0.45, dist * 1.3);
+          this.selectFace('+z');
+          break;
+        case 'back':
+          // Back Blue face with Yellow clearly visible on top
+          target.set(0, dist * 0.45, -dist * 1.3);
+          this.selectFace('-z');
+          break;
+        case 'right':
+          // Right Red face with Yellow clearly visible on top
+          target.set(dist * 1.3, dist * 0.45, 0);
+          this.selectFace('+x');
+          break;
+        case 'left':
+          // Left Orange face with Yellow clearly visible on top
+          target.set(-dist * 1.3, dist * 0.45, 0);
+          this.selectFace('-x');
+          break;
         case 'iso':
         default:
-          target.set(dist * 0.9, dist * 0.8, dist * 1.2);
+          target.set(dist * 0.85, dist * 0.75, dist * 1.25);
           this.selectFace('+z');
           break;
       }
@@ -1497,6 +1540,32 @@
       document.getElementById('resetCameraBtn').addEventListener('click', () => {
         this.setDefaultCamera();
       });
+
+      // Floating Zoom Controls (allows zooming out way further)
+      const zoomInBtn = document.getElementById('zoomInBtn');
+      if (zoomInBtn) {
+        zoomInBtn.addEventListener('click', () => {
+          this.zoomCamera(-2.5);
+        });
+      }
+
+      const zoomOutBtn = document.getElementById('zoomOutBtn');
+      if (zoomOutBtn) {
+        zoomOutBtn.addEventListener('click', () => {
+          this.zoomCamera(2.5);
+        });
+      }
+
+      // 360 Auto-Rotate Showcase Button
+      const autoRotateBtn = document.getElementById('autoRotateBtn');
+      if (autoRotateBtn) {
+        autoRotateBtn.addEventListener('click', () => {
+          this.controls.autoRotate = !this.controls.autoRotate;
+          this.controls.autoRotateSpeed = 2.4;
+          autoRotateBtn.classList.toggle('active', this.controls.autoRotate);
+          this.showToast(this.controls.autoRotate ? 'Авто-обзор 360° включен' : 'Авто-обзор выключен');
+        });
+      }
 
       // Toggle notation controls
       const toggleControlsBtn = document.getElementById('toggleControlsBtn');

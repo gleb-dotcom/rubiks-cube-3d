@@ -67,6 +67,13 @@
     <main id="canvas-container">
       <canvas id="cubeCanvas"></canvas>
 
+      <!-- Floating Zoom and 360 Inspection Controls -->
+      <div class="view-controls-floating">
+        <button id="zoomInBtn" class="floating-btn" title="Приблизить кубик">➕ Приблизить</button>
+        <button id="zoomOutBtn" class="floating-btn" title="Отдалить кубик сильнее">➖ Отдалить</button>
+        <button id="autoRotateBtn" class="floating-btn" title="Включить плавный авто-обзор на 360°">🔄 Авто 360°</button>
+      </div>
+
       <!-- Floating Direction Arrow Tooltip -->
       <div id="arrowTooltip" class="arrow-tooltip">
         <span id="arrowTooltipText">Повернуть грань</span>
