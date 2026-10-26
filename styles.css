@@ -607,6 +607,24 @@ html, body {
   box-shadow: 0 0 24px rgba(16, 185, 129, 0.45);
 }
 
+.action-btn.solve.solving {
+  border-color: var(--accent-green);
+  box-shadow: 0 0 28px rgba(16, 185, 129, 0.85);
+  animation: pulse-solve 0.8s infinite alternate ease-in-out;
+}
+
+@keyframes pulse-solve {
+  0% { transform: scale(1); box-shadow: 0 0 14px rgba(16, 185, 129, 0.4); }
+  100% { transform: scale(1.04); box-shadow: 0 0 32px rgba(16, 185, 129, 0.9); }
+}
+
+.action-btn:disabled,
+.turn-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 /* Reset Button Accent */
 .action-btn.reset:hover {
   transform: translateY(-2px);

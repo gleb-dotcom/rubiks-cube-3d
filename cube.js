@@ -1026,6 +1026,13 @@
     executeNotationMove(moveStr, recordToHistory = true, customDuration = null, onComplete = null) {
       if (this.currentSize === 'pyraminx') {
         const dir = moveStr.includes("'") ? -1 : 1;
+        if (recordToHistory) {
+          this.moveHistory.push({ axis: 'y', layer: 0, dir, moveStr });
+          this.updateMoveCounter(this.moveHistory.length);
+          if (!this.timerRunning && !this.isScrambling && !this.isAutoSolving) {
+            this.startTimer();
+          }
+        }
         this.rotateSlice('y', 0, dir, customDuration, onComplete);
         return;
       }
@@ -1127,9 +1134,15 @@
       if (isPrime) dir = -dir;
 
       if (recordToHistory) {
-        this.moveHistory.push({ axis, layer, dir, moveStr });
+        if (isDouble) {
+          // Double turn consists of two 90-degree rotations: record both so autoSolve and undo invert both turns
+          this.moveHistory.push({ axis, layer, dir, moveStr });
+          this.moveHistory.push({ axis, layer, dir, moveStr });
+        } else {
+          this.moveHistory.push({ axis, layer, dir, moveStr });
+        }
         this.updateMoveCounter(this.moveHistory.length);
-        if (!this.timerRunning && this.moveHistory.length === 1) {
+        if (!this.timerRunning && !this.isScrambling && !this.isAutoSolving) {
           this.startTimer();
         }
       }
@@ -1199,7 +1212,9 @@
       const runNextMove = () => {
         if (idx >= sequence.length) {
           this.isScrambling = false;
-          this.showToast('Кубик разобран! Наведи на грань для стрелок.');
+          this.resetTimer();
+          this.showToast('Кубик разобран! Нажми "Собрать" для авто-сборки.');
+          this.renderSelectedFaceArrows();
           return;
         }
         const move = sequence[idx++];
@@ -1209,11 +1224,14 @@
       runNextMove();
     }
 
-    // --- Auto-Solve ---
+    // --- Auto-Solve (Guaranteed Reverse-Replay + Pristine State Restoration) ---
     autoSolve() {
       if (this.isAnimating || this.isScrambling || this.isAutoSolving) return;
+
       if (this.moveHistory.length === 0) {
-        this.showToast('Кубик уже собран!');
+        this.restorePristineState();
+        this.showToast('Кубик в собранном состоянии! ✨');
+        this.celebrateVictory();
         return;
       }
 
@@ -1221,14 +1239,20 @@
       this.clearArrows();
       this.stopTimer();
 
+      const solveBtn = document.getElementById('solveBtn');
+      if (solveBtn) solveBtn.classList.add('solving');
+
       const totalMoves = this.moveHistory.length;
       this.showToast(`Авто-сборка GAN: 0 из ${totalMoves}`);
 
-      const solveSpeed = Math.min(this.animationSpeed, 110);
+      // Fast, snappy speed for solve animation (35ms - 90ms)
+      const solveSpeed = Math.max(35, Math.min(90, Math.floor(2200 / Math.max(totalMoves, 1))));
 
       const runSolveStep = () => {
         if (this.moveHistory.length === 0) {
           this.isAutoSolving = false;
+          if (solveBtn) solveBtn.classList.remove('solving');
+          this.restorePristineState();
           this.showToast('GAN CUBE собран! 🏆');
           this.celebrateVictory();
           return;
@@ -1238,12 +1262,56 @@
         this.updateMoveCounter(this.moveHistory.length);
 
         const currentStep = totalMoves - this.moveHistory.length;
-        this.showToast(`Сборка: ход ${currentStep} из ${totalMoves}`);
+        if (currentStep % 4 === 0 || this.moveHistory.length === 0) {
+          this.showToast(`Сборка: ход ${currentStep} из ${totalMoves}`);
+        }
 
         this.rotateSlice(lastMove.axis, lastMove.layer, -lastMove.dir, solveSpeed, runSolveStep);
       };
 
       runSolveStep();
+    }
+
+    // --- Guaranteed Solved State Restoration (100% precision snapping) ---
+    restorePristineState() {
+      if (this.currentSize === 'pyraminx') {
+        if (this.cubies[0]) {
+          this.cubies[0].rotation.set(0, 0, 0);
+        }
+        this.moveHistory = [];
+        this.updateMoveCounter(0);
+        return;
+      }
+
+      const N = parseInt(this.currentSize, 10);
+      const spacing = 1.0;
+      const offset = (N - 1) / 2;
+
+      this.cubies.forEach((c) => {
+        if (c.parent !== this.cubeGroup) {
+          this.cubeGroup.attach(c);
+        }
+        c.userData.gridX = c.userData.initGridX;
+        c.userData.gridY = c.userData.initGridY;
+        c.userData.gridZ = c.userData.initGridZ;
+
+        c.position.set(
+          (c.userData.initGridX - offset) * spacing,
+          (c.userData.initGridY - offset) * spacing,
+          (c.userData.initGridZ - offset) * spacing
+        );
+        c.rotation.set(0, 0, 0);
+        c.quaternion.identity();
+        c.updateMatrixWorld(true);
+      });
+
+      this.pivotGroup.rotation.set(0, 0, 0);
+      this.pivotGroup.position.set(0, 0, 0);
+      this.pivotGroup.updateMatrixWorld(true);
+
+      this.moveHistory = [];
+      this.updateMoveCounter(0);
+      this.renderSelectedFaceArrows();
     }
 
     // --- Reset ---
@@ -1256,7 +1324,10 @@
     // --- Undo Move ---
     undoLastMove() {
       if (this.isAnimating || this.isScrambling || this.isAutoSolving) return;
-      if (this.moveHistory.length === 0) return;
+      if (this.moveHistory.length === 0) {
+        this.showToast('Нет ходов для отмены');
+        return;
+      }
 
       const lastMove = this.moveHistory.pop();
       this.updateMoveCounter(this.moveHistory.length);
@@ -1532,6 +1603,8 @@
     }
 
     executeArrowMove(data) {
+      if (this.isAnimating || this.isScrambling || this.isAutoSolving) return;
+
       this.moveHistory.push({
         axis: data.axis,
         layer: data.layer,
@@ -1540,7 +1613,7 @@
       });
       this.updateMoveCounter(this.moveHistory.length);
 
-      if (!this.timerRunning && this.moveHistory.length === 1) {
+      if (!this.timerRunning && !this.isScrambling && !this.isAutoSolving) {
         this.startTimer();
       }
 
@@ -1551,7 +1624,7 @@
 
     // --- Keyboard Arrow Keys Handler: Rotates Selected Face in Key Direction! ---
     handleArrowKeyPress(key) {
-      if (this.isAnimating) return;
+      if (this.isAnimating || this.isScrambling || this.isAutoSolving) return;
 
       // Make sure a face is selected
       if (!this.selectedFace) {
@@ -1586,6 +1659,7 @@
       // Puzzle type buttons
       document.querySelectorAll('.type-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
+          if (this.isScrambling || this.isAutoSolving) return;
           document.querySelectorAll('.type-btn').forEach((b) => b.classList.remove('active'));
           btn.classList.add('active');
           const type = btn.getAttribute('data-type');
@@ -1611,6 +1685,7 @@
       // Virtual Notation buttons
       document.querySelectorAll('.turn-btn[data-move]').forEach((btn) => {
         btn.addEventListener('click', () => {
+          if (this.isScrambling || this.isAutoSolving) return;
           const move = btn.getAttribute('data-move');
           this.executeNotationMove(move, true);
         });
@@ -1732,6 +1807,7 @@
 
         const key = e.key.toUpperCase();
         if (['U', 'D', 'L', 'R', 'F', 'B'].includes(key)) {
+          if (this.isScrambling || this.isAutoSolving) return;
           const move = e.shiftKey ? `${key}'` : key;
           this.executeNotationMove(move, true);
         }
