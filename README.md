@@ -1,5 +1,10 @@
 # ⚡ GAN 356 CUBE 3D & AI Solver (Кубик Рубика 3D + Решатель своего кубика)
 
+[![GitHub Pages](https://img.shields.io/badge/Demo-Live%20Online-success?style=for-the-badge&logo=github)](https://gleb-dotcom.github.io/rubiks-cube-3d/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+
+> 🎮 **Играть онлайн / Запустить симулятор:** [**https://gleb-dotcom.github.io/rubiks-cube-3d/**](https://gleb-dotcom.github.io/rubiks-cube-3d/)
+
 Премиальный 3D симулятор кубика Рубика и AI-решатель реального кубика в стиле **GAN Cube** с управлением стрелками, желтым цветом сверху, белым снизу, свободным обзором на 360 градусов, вкладкой раскраски своего реального кубика, длинными 3D стрелками сборки и полным WCA скрамблом.
 
 ## 🚀 Основные режимы
@@ -41,3 +46,7 @@
 - min2phase.js (WCA-стандартный Two-Phase Kociemba Solver)
 - Web Audio API (звуковые эффекты магнитных щелчков GAN)
 - Чистый JavaScript без сторонних фреймворков
+
+## 🔗 Ссылки
+- 🚀 **Онлайн-приложение (GitHub Pages):** [https://gleb-dotcom.github.io/rubiks-cube-3d/](https://gleb-dotcom.github.io/rubiks-cube-3d/)
+- 💻 **Репозиторий:** [https://github.com/gleb-dotcom/rubiks-cube-3d](https://github.com/gleb-dotcom/rubiks-cube-3d)
