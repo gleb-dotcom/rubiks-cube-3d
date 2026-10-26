@@ -52,6 +52,9 @@
 
       <!-- Quick Options -->
       <div class="header-actions">
+        <button id="timerToggleViewBtn" class="icon-btn active" title="Показать/скрыть таймер сборки" aria-label="Таймер">
+          ⏱
+        </button>
         <button id="soundToggleBtn" class="icon-btn" title="Звук клика: Вкл/Выкл">
           🔊
         </button>
@@ -166,14 +169,23 @@
 
       <!-- Speedcubing Timer -->
       <div id="timerContainer" class="timer-card">
-        <div class="timer-digits" id="timerDigits">00:00.00</div>
-        <div class="timer-controls">
-          <button id="timerToggleBtn" class="timer-btn">⏱ Старт / Стоп (Space)</button>
-          <button id="timerResetBtn" class="timer-btn timer-btn-sub">Сброс</button>
+        <div class="timer-top-bar">
+          <span class="timer-pill-title">⏱ Таймер</span>
+          <div class="timer-top-actions">
+            <button id="timerMinimizeBtn" class="timer-card-btn" title="Свернуть в мини-плашку">−</button>
+            <button id="timerCloseBtn" class="timer-card-btn timer-close-icon" title="Скрыть таймер">✕</button>
+          </div>
         </div>
-        <div class="timer-stats">
-          <span>Ходов: <b id="moveCount">0</b></span>
-          <span>Лучшее: <b id="bestTime">--:--</b></span>
+        <div class="timer-body" id="timerBody">
+          <div class="timer-digits" id="timerDigits">00:00.00</div>
+          <div class="timer-controls">
+            <button id="timerToggleBtn" class="timer-btn">⏱ Старт / Стоп</button>
+            <button id="timerResetBtn" class="timer-btn timer-btn-sub">Сброс</button>
+          </div>
+          <div class="timer-stats">
+            <span>Ходов: <b id="moveCount">0</b></span>
+            <span>Лучшее: <b id="bestTime">--:--</b></span>
+          </div>
         </div>
       </div>
 

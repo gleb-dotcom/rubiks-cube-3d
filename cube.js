@@ -1988,11 +1988,63 @@
       }
 
       // Timer Controls
-      document.getElementById('timerToggleBtn').addEventListener('click', () => {
+      const timerContainer = document.getElementById('timerContainer');
+      const timerToggleViewBtn = document.getElementById('timerToggleViewBtn');
+      const timerCloseBtn = document.getElementById('timerCloseBtn');
+      const timerMinimizeBtn = document.getElementById('timerMinimizeBtn');
+
+      if (timerToggleViewBtn) {
+        timerToggleViewBtn.addEventListener('click', () => {
+          if (timerContainer) {
+            const isHidden = timerContainer.classList.toggle('hidden');
+            timerToggleViewBtn.classList.toggle('active', !isHidden);
+            this.showToast(isHidden ? 'Таймер скрыт' : 'Таймер включен');
+          }
+        });
+      }
+
+      if (timerCloseBtn) {
+        timerCloseBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (timerContainer) {
+            timerContainer.classList.add('hidden');
+            if (timerToggleViewBtn) timerToggleViewBtn.classList.remove('active');
+            this.showToast('Таймер скрыт (можно вернуть кнопкой ⏱ в шапке)');
+          }
+        });
+      }
+
+      if (timerMinimizeBtn) {
+        timerMinimizeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (timerContainer) {
+            timerContainer.classList.toggle('minimized');
+          }
+        });
+      }
+
+      if (timerContainer) {
+        timerContainer.addEventListener('click', (e) => {
+          if (timerContainer.classList.contains('minimized') && e.target.id !== 'timerCloseBtn') {
+            timerContainer.classList.remove('minimized');
+          }
+        });
+
+        // On mobile: default timer to minimized so it never blocks the 3D cube
+        if (window.innerWidth <= 768) {
+          timerContainer.classList.add('minimized');
+        }
+      }
+
+      document.getElementById('timerToggleBtn').addEventListener('click', (e) => {
+        e.stopPropagation();
         if (this.timerRunning) this.stopTimer();
         else this.startTimer();
       });
-      document.getElementById('timerResetBtn').addEventListener('click', () => this.resetTimer());
+      document.getElementById('timerResetBtn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.resetTimer();
+      });
 
       // Help Modal
       const helpModal = document.getElementById('helpModal');

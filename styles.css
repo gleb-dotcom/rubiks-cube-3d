@@ -565,7 +565,7 @@ html, body {
   background: var(--bg-secondary);
   backdrop-filter: blur(14px);
   border: 1px solid var(--border-color);
-  padding: 12px 16px;
+  padding: 10px 14px;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   display: flex;
@@ -574,6 +574,99 @@ html, body {
   gap: 8px;
   z-index: 50;
   min-width: 170px;
+  transition: all 0.22s ease;
+}
+
+.timer-card.hidden {
+  display: none !important;
+}
+
+.timer-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.timer-pill-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.timer-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.timer-card-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #94a3b8;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.timer-card-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.timer-card-btn.timer-close-icon:hover {
+  color: #ef4444;
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.25);
+}
+
+.timer-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+/* Minimized Timer Pill (Single neat badge) */
+.timer-card.minimized {
+  min-width: auto;
+  padding: 4px 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  flex-direction: row;
+  gap: 6px;
+}
+
+.timer-card.minimized .timer-top-bar {
+  width: auto;
+}
+
+.timer-card.minimized .timer-pill-title {
+  display: none;
+}
+
+.timer-card.minimized .timer-controls,
+.timer-card.minimized .timer-stats {
+  display: none !important;
+}
+
+.timer-card.minimized .timer-digits {
+  font-size: 14px;
+  letter-spacing: 0.5px;
+}
+
+.timer-card.minimized .timer-card-btn:not(.timer-close-icon) {
+  transform: rotate(45deg);
 }
 
 .timer-digits {
@@ -1199,17 +1292,22 @@ html, body {
   }
 
   .timer-card {
-    top: 196px;
+    top: 124px;
     right: 8px;
     bottom: auto;
-    min-width: 110px;
-    padding: 6px 10px;
-    border-radius: 14px;
+    min-width: auto;
+    padding: 4px 8px;
+    border-radius: 12px;
     z-index: 65;
   }
 
+  .timer-card.minimized {
+    padding: 3px 8px;
+    border-radius: 16px;
+  }
+
   .timer-digits {
-    font-size: 16px;
+    font-size: 14px;
   }
 
   .timer-controls {
@@ -1225,8 +1323,8 @@ html, body {
 
   .timer-stats {
     font-size: 9px;
-    padding-top: 4px;
-    margin-top: 4px;
+    padding-top: 3px;
+    margin-top: 3px;
   }
 
   .mobile-dpad {
