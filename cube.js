@@ -1,6 +1,6 @@
 /**
  * -------------------------------------------------------------
- * КУБИК РУБИКА 3D — Полный движок и интерфейс
+ * КУБИК РУБИКА 3D — Полный обзор 360° и интерактивные стрелки
  * Поддержка 2x2, 3x3, 4x4, 5x5 и Пирамидки
  * -------------------------------------------------------------
  */
@@ -8,7 +8,7 @@
 (function () {
   'use strict';
 
-  // --- Sound Synthesizer (Web Audio API) ---
+  // --- Web Audio API Sound Synthesizer ---
   class SoundFX {
     constructor() {
       this.ctx = null;
@@ -33,13 +33,12 @@
       if (!this.ctx) return;
 
       const now = this.ctx.currentTime;
-      // Mechanical snap: short burst of filtered noise + low pop
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
 
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(140, now);
-      osc.frequency.exponentialRampToValueAtTime(40, now + 0.05);
+      osc.frequency.setValueAtTime(150, now);
+      osc.frequency.exponentialRampToValueAtTime(35, now + 0.05);
 
       gain.gain.setValueAtTime(0.3, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
@@ -56,7 +55,7 @@
       this.init();
       if (!this.ctx) return;
 
-      const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+      const notes = [523.25, 659.25, 783.99, 1046.5];
       const start = this.ctx.currentTime;
 
       notes.forEach((freq, idx) => {
@@ -80,7 +79,7 @@
     }
   }
 
-  // --- Theme definitions ---
+  // --- Themes ---
   const THEMES = {
     classic: {
       U: 0xffffff, // White
@@ -114,6 +113,49 @@
     }
   };
 
+  // --- Procedural 3D Arrow Texture Generator ---
+  function createArrowTexture(symbol, label, color = '#38bdf8', bg = 'rgba(15, 23, 42, 0.92)') {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+
+    // Glowing circle badge
+    ctx.clearRect(0, 0, 128, 128);
+
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 12;
+
+    ctx.beginPath();
+    ctx.arc(64, 64, 52, 0, Math.PI * 2);
+    ctx.fillStyle = bg;
+    ctx.fill();
+
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = color;
+    ctx.stroke();
+    ctx.restore();
+
+    // Draw Symbol
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 50px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(symbol, 64, 58);
+
+    // Draw Sub-label
+    if (label) {
+      ctx.fillStyle = color;
+      ctx.font = 'bold 16px monospace';
+      ctx.fillText(label, 64, 96);
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    return texture;
+  }
+
   // --- Main Rubik Engine & App State ---
   class RubiksCubeApp {
     constructor() {
@@ -125,11 +167,10 @@
       this.cubies = [];
       this.isAnimating = false;
       this.animationSpeed = 200; // ms per turn
-      this.moveHistory = []; // Stack of moves performed
-      this.moveQueue = []; // Queued animations
+      this.moveHistory = [];
       this.isScrambling = false;
       this.isAutoSolving = false;
-      this.scrambleSequence = [];
+      this.showArrowsAlways = true;
 
       // Timer state
       this.timerRunning = false;
@@ -138,11 +179,19 @@
       this.timerInterval = null;
       this.moveCount = 0;
 
-      // Face drag interaction
-      this.isDraggingFace = false;
+      // Camera tweening
+      this.targetCameraPos = null;
+      this.isTransitioningCamera = false;
+
+      // Arrow meshes
+      this.arrowMeshes = [];
+      this.activeHoveredArrow = null;
+      this.highlightedCubies = [];
+
+      // Pointer tracking to differentiate click vs 360 drag
       this.pointerDownPos = new THREE.Vector2();
-      this.selectedCubie = null;
-      this.selectedFaceNormal = null;
+      this.isPointerDown = false;
+      this.dragThresholdPassed = false;
 
       this.initThree();
       this.bindUI();
@@ -175,26 +224,33 @@
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       this.renderer.shadowMap.enabled = true;
 
-      // OrbitControls for camera
+      // OrbitControls configured for UNRESTRICTED 360-degree rotation!
       this.controls = new THREE.OrbitControls(this.camera, canvas);
       this.controls.enableDamping = true;
-      this.controls.dampingFactor = 0.08;
-      this.controls.rotateSpeed = 0.8;
+      this.controls.dampingFactor = 0.06;
+      this.controls.rotateSpeed = 0.9;
       this.controls.enablePan = false;
-      this.controls.minDistance = 4;
-      this.controls.maxDistance = 25;
+      this.controls.minDistance = 3.5;
+      this.controls.maxDistance = 30;
+      // Allow full vertical 360 orbit without clamp
+      this.controls.minPolarAngle = 0.01;
+      this.controls.maxPolarAngle = Math.PI - 0.01;
 
       // Lights
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.72);
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.78);
       this.scene.add(ambientLight);
 
       const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.65);
-      dirLight1.position.set(12, 20, 15);
+      dirLight1.position.set(15, 25, 20);
       this.scene.add(dirLight1);
 
-      const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.45);
-      dirLight2.position.set(-15, -12, -10);
+      const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
+      dirLight2.position.set(-18, -15, -15);
       this.scene.add(dirLight2);
+
+      const dirLight3 = new THREE.DirectionalLight(0xffffff, 0.3);
+      dirLight3.position.set(0, -25, 0);
+      this.scene.add(dirLight3);
 
       // Cube parent group & pivot group for animated rotations
       this.cubeGroup = new THREE.Group();
@@ -202,6 +258,10 @@
 
       this.pivotGroup = new THREE.Group();
       this.scene.add(this.pivotGroup);
+
+      // Separate group for 3D interactive arrows
+      this.arrowGroup = new THREE.Group();
+      this.scene.add(this.arrowGroup);
 
       this.raycaster = new THREE.Raycaster();
       this.mouse = new THREE.Vector2();
@@ -211,13 +271,35 @@
     }
 
     setDefaultCamera() {
-      const dist = this.currentSize === 'pyraminx' ? 9 : (this.currentSize * 2.2 + 3);
+      const dist = this.currentSize === 'pyraminx' ? 9.5 : (this.currentSize * 2.3 + 3.2);
       this.camera.position.set(dist * 0.9, dist * 0.8, dist * 1.2);
       this.camera.lookAt(0, 0, 0);
       if (this.controls) {
         this.controls.target.set(0, 0, 0);
         this.controls.update();
       }
+    }
+
+    // Smoothly animate camera to a specific 360 view angle
+    setCameraView(viewName) {
+      const dist = this.currentSize === 'pyraminx' ? 9.5 : (this.currentSize * 2.3 + 3.2);
+      let target = new THREE.Vector3();
+
+      switch (viewName) {
+        case 'front': target.set(0, 0, dist * 1.4); break;
+        case 'back': target.set(0, 0, -dist * 1.4); break;
+        case 'top': target.set(0, dist * 1.4, 0.001); break;
+        case 'bottom': target.set(0, -dist * 1.4, 0.001); break;
+        case 'left': target.set(-dist * 1.4, 0, 0); break;
+        case 'right': target.set(dist * 1.4, 0, 0); break;
+        case 'iso':
+        default:
+          target.set(dist * 0.9, dist * 0.8, dist * 1.2);
+          break;
+      }
+
+      this.targetCameraPos = target;
+      this.isTransitioningCamera = true;
     }
 
     onWindowResize() {
@@ -232,7 +314,6 @@
     buildPuzzle(size) {
       this.currentSize = size;
       this.moveHistory = [];
-      this.moveQueue = [];
       this.isAutoSolving = false;
       this.isScrambling = false;
       this.updateMoveCounter(0);
@@ -255,6 +336,7 @@
         this.buildNxNCube(parseInt(size, 10));
       }
 
+      this.createEdgeArrows();
       this.setDefaultCamera();
     }
 
@@ -264,7 +346,6 @@
       const spacing = 1.0;
       const offset = (N - 1) / 2;
 
-      // Base black plastic material for cubie body
       const bodyMat = new THREE.MeshStandardMaterial({
         color: this.theme.body,
         roughness: 0.35,
@@ -276,7 +357,6 @@
       for (let ix = 0; ix < N; ix++) {
         for (let iy = 0; iy < N; iy++) {
           for (let iz = 0; iz < N; iz++) {
-            // Skip inner cubies for N > 2 to optimize rendering
             const isExterior =
               ix === 0 || ix === N - 1 ||
               iy === 0 || iy === N - 1 ||
@@ -291,10 +371,8 @@
             const cubieMesh = new THREE.Mesh(boxGeo, bodyMat.clone());
             cubieMesh.position.set(x, y, z);
 
-            // Add colored stickers for exterior faces
             this.addStickersToCubie(cubieMesh, ix, iy, iz, N, cubieSize);
 
-            // Store logical grid coordinate indices and initial positions
             cubieMesh.userData = {
               gridX: ix,
               gridY: iy,
@@ -345,9 +423,8 @@
       });
     }
 
-    // --- Build Pyraminx (Tetrahedron Puzzle) ---
+    // --- Build Pyraminx ---
     buildPyraminx() {
-      // 4 Faces of Pyraminx: Front (Green), Right (Red), Left (Blue), Bottom (Yellow)
       const colors = [this.theme.F, this.theme.R, this.theme.B, this.theme.D];
       const scale = 3.2;
 
@@ -360,7 +437,6 @@
       const baseTetra = new THREE.Mesh(tetraGeo, tetraMat);
       baseTetra.position.set(0, 0, 0);
 
-      // Apply 4 distinct face colors using vertex groups or sub-meshes
       const positions = tetraGeo.attributes.position.array;
       for (let i = 0; i < 4; i++) {
         const triGeo = new THREE.BufferGeometry();
@@ -386,10 +462,217 @@
       this.cubies.push(baseTetra);
     }
 
+    // --- Interactive 3D Rotation Arrows on Edges and Faces ---
+    createEdgeArrows() {
+      // Clear old arrows
+      while (this.arrowGroup.children.length > 0) {
+        const a = this.arrowGroup.children[0];
+        this.arrowGroup.remove(a);
+        if (a.material) a.material.dispose();
+        if (a.geometry) a.geometry.dispose();
+      }
+      this.arrowMeshes = [];
+
+      if (this.currentSize === 'pyraminx') {
+        this.createPyraminxArrows();
+        return;
+      }
+
+      const N = parseInt(this.currentSize, 10);
+      const spacing = 1.0;
+      const offset = (N - 1) / 2;
+      const faceDist = offset + 0.58; // slightly hovering outside the cube face
+      const edgeDist = offset + 0.65;
+      const arrowSize = 0.58;
+      const arrowPlaneGeo = new THREE.PlaneGeometry(arrowSize, arrowSize);
+
+      // Definition of arrows for each of the 6 outer faces
+      // Each arrow has: position, normal rotation, axis, layer, direction, label, symbol, description
+      const facesConfig = [
+        // Front Face (+Z)
+        {
+          name: 'Front (F)',
+          center: [0, 0, faceDist],
+          rot: [0, 0, 0],
+          cw: { axis: 'z', layer: N - 1, dir: -1, move: 'F', desc: 'Грань F по часовой ↻' },
+          ccw: { axis: 'z', layer: N - 1, dir: 1, move: "F'", desc: 'Грань F против часовой ↺' },
+          edges: [
+            { pos: [edgeDist, 0, faceDist], symbol: '⬇', axis: 'x', layer: N - 1, dir: 1, move: "R'", desc: 'Правый слой R вниз' },
+            { pos: [edgeDist, 0, faceDist - 0.5], symbol: '⬆', axis: 'x', layer: N - 1, dir: -1, move: 'R', desc: 'Правый слой R вверх' },
+            { pos: [-edgeDist, 0, faceDist], symbol: '⬆', axis: 'x', layer: 0, dir: 1, move: 'L', desc: 'Левый слой L вверх' },
+            { pos: [0, edgeDist, faceDist], symbol: '⬅', axis: 'y', layer: N - 1, dir: -1, move: 'U', desc: 'Верхний слой U влево' },
+            { pos: [0, -edgeDist, faceDist], symbol: '➡', axis: 'y', layer: 0, dir: 1, move: 'D', desc: 'Нижний слой D вправо' }
+          ]
+        },
+        // Right Face (+X)
+        {
+          name: 'Right (R)',
+          center: [faceDist, 0, 0],
+          rot: [0, Math.PI / 2, 0],
+          cw: { axis: 'x', layer: N - 1, dir: -1, move: 'R', desc: 'Грань R по часовой ↻' },
+          ccw: { axis: 'x', layer: N - 1, dir: 1, move: "R'", desc: 'Грань R против часовой ↺' },
+          edges: [
+            { pos: [faceDist, edgeDist, 0], symbol: '⬅', axis: 'y', layer: N - 1, dir: -1, move: 'U', desc: 'Верхний слой U' },
+            { pos: [faceDist, -edgeDist, 0], symbol: '➡', axis: 'y', layer: 0, dir: 1, move: 'D', desc: 'Нижний слой D' },
+            { pos: [faceDist, 0, edgeDist], symbol: '⬇', axis: 'z', layer: N - 1, dir: -1, move: 'F', desc: 'Передний слой F' },
+            { pos: [faceDist, 0, -edgeDist], symbol: '⬆', axis: 'z', layer: 0, dir: 1, move: 'B', desc: 'Задний слой B' }
+          ]
+        },
+        // Up Face (+Y)
+        {
+          name: 'Up (U)',
+          center: [0, faceDist, 0],
+          rot: [-Math.PI / 2, 0, 0],
+          cw: { axis: 'y', layer: N - 1, dir: -1, move: 'U', desc: 'Грань U по часовой ↻' },
+          ccw: { axis: 'y', layer: N - 1, dir: 1, move: "U'", desc: 'Грань U против часовой ↺' },
+          edges: [
+            { pos: [edgeDist, faceDist, 0], symbol: '⬇', axis: 'x', layer: N - 1, dir: 1, move: "R'", desc: 'Слой R назад' },
+            { pos: [-edgeDist, faceDist, 0], symbol: '⬆', axis: 'x', layer: 0, dir: 1, move: 'L', desc: 'Слой L вперед' },
+            { pos: [0, faceDist, edgeDist], symbol: '➡', axis: 'z', layer: N - 1, dir: -1, move: 'F', desc: 'Слой F' },
+            { pos: [0, faceDist, -edgeDist], symbol: '⬅', axis: 'z', layer: 0, dir: 1, move: 'B', desc: 'Слой B' }
+          ]
+        },
+        // Down Face (-Y)
+        {
+          name: 'Down (D)',
+          center: [0, -faceDist, 0],
+          rot: [Math.PI / 2, 0, 0],
+          cw: { axis: 'y', layer: 0, dir: 1, move: 'D', desc: 'Грань D по часовой ↻' },
+          ccw: { axis: 'y', layer: 0, dir: -1, move: "D'", desc: 'Грань D против часовой ↺' },
+          edges: [
+            { pos: [edgeDist, -faceDist, 0], symbol: '➡', axis: 'x', layer: N - 1, dir: -1, move: 'R', desc: 'Слой R' },
+            { pos: [-edgeDist, -faceDist, 0], symbol: '⬅', axis: 'x', layer: 0, dir: -1, move: "L'", desc: 'Слой L' }
+          ]
+        },
+        // Left Face (-X)
+        {
+          name: 'Left (L)',
+          center: [-faceDist, 0, 0],
+          rot: [0, -Math.PI / 2, 0],
+          cw: { axis: 'x', layer: 0, dir: 1, move: 'L', desc: 'Грань L по часовой ↻' },
+          ccw: { axis: 'x', layer: 0, dir: -1, move: "L'", desc: 'Грань L против часовой ↺' },
+          edges: [
+            { pos: [-faceDist, edgeDist, 0], symbol: '⬅', axis: 'y', layer: N - 1, dir: -1, move: 'U', desc: 'Верхний слой U' },
+            { pos: [-faceDist, -edgeDist, 0], symbol: '➡', axis: 'y', layer: 0, dir: 1, move: 'D', desc: 'Нижний слой D' }
+          ]
+        },
+        // Back Face (-Z)
+        {
+          name: 'Back (B)',
+          center: [0, 0, -faceDist],
+          rot: [0, Math.PI, 0],
+          cw: { axis: 'z', layer: 0, dir: 1, move: 'B', desc: 'Грань B по часовой ↻' },
+          ccw: { axis: 'z', layer: 0, dir: -1, move: "B'", desc: 'Грань B против часовой ↺' },
+          edges: [
+            { pos: [edgeDist, 0, -faceDist], symbol: '⬆', axis: 'x', layer: N - 1, dir: -1, move: 'R', desc: 'Слой R вверх' },
+            { pos: [-edgeDist, 0, -faceDist], symbol: '⬇', axis: 'x', layer: 0, dir: -1, move: "L'", desc: 'Слой L вниз' }
+          ]
+        }
+      ];
+
+      facesConfig.forEach((fc) => {
+        // 1. Clockwise Curved Arrow (↻)
+        const cwOffset = 0.55;
+        const cwPos = [
+          fc.center[0] + (fc.rot[1] === 0 ? cwOffset : 0),
+          fc.center[1] + (fc.rot[0] === 0 ? cwOffset : 0),
+          fc.center[2]
+        ];
+        this.addArrowSprite(
+          fc.cw.move,
+          '↻',
+          fc.cw,
+          fc.center,
+          fc.rot,
+          [-0.45, 0.45, 0.05],
+          '#10b981'
+        );
+
+        // 2. Counter-Clockwise Curved Arrow (↺)
+        this.addArrowSprite(
+          fc.ccw.move,
+          '↺',
+          fc.ccw,
+          fc.center,
+          fc.rot,
+          [0.45, 0.45, 0.05],
+          '#f59e0b'
+        );
+
+        // 3. Directional edge arrows
+        if (fc.edges) {
+          fc.edges.forEach((ed) => {
+            this.addArrowSprite(
+              ed.move,
+              ed.symbol,
+              ed,
+              ed.pos,
+              fc.rot,
+              [0, 0, 0.02],
+              '#38bdf8'
+            );
+          });
+        }
+      });
+    }
+
+    addArrowSprite(move, symbol, config, basePos, rot, localOffset = [0, 0, 0], color = '#38bdf8') {
+      const tex = createArrowTexture(symbol, move, color);
+      const mat = new THREE.MeshBasicMaterial({
+        map: tex,
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthTest: true
+      });
+      const geo = new THREE.PlaneGeometry(0.52, 0.52);
+      const mesh = new THREE.Mesh(geo, mat);
+
+      mesh.position.set(...basePos);
+      mesh.rotation.set(...rot);
+      mesh.translateX(localOffset[0]);
+      mesh.translateY(localOffset[1]);
+      mesh.translateZ(localOffset[2]);
+
+      mesh.userData = {
+        isArrow: true,
+        move: move,
+        symbol: symbol,
+        axis: config.axis,
+        layer: config.layer,
+        dir: config.dir,
+        desc: config.desc || `${move} (${symbol})`,
+        origScale: 1.0,
+        color: color
+      };
+
+      this.arrowGroup.add(mesh);
+      this.arrowMeshes.push(mesh);
+    }
+
+    createPyraminxArrows() {
+      const matCW = new THREE.MeshBasicMaterial({
+        map: createArrowTexture('↻', 'R', '#10b981'),
+        transparent: true
+      });
+      const matCCW = new THREE.MeshBasicMaterial({
+        map: createArrowTexture('↺', "R'", '#f59e0b'),
+        transparent: true
+      });
+      const geo = new THREE.PlaneGeometry(0.8, 0.8);
+
+      const m1 = new THREE.Mesh(geo, matCW);
+      m1.position.set(1.5, 0, 2);
+      m1.userData = { isArrow: true, axis: 'y', layer: 0, dir: 1, desc: 'Пирамидка по часовой ↻' };
+
+      const m2 = new THREE.Mesh(geo, matCCW);
+      m2.position.set(-1.5, 0, 2);
+      m2.userData = { isArrow: true, axis: 'y', layer: 0, dir: -1, desc: 'Пирамидка против часовой ↺' };
+
+      this.arrowGroup.add(m1, m2);
+      this.arrowMeshes.push(m1, m2);
+    }
+
     // --- Face and Slice Rotations ---
-    // axis: 'x', 'y', 'z'
-    // layer: index from 0 to N-1
-    // direction: +1 (clockwise around axis) or -1 (counter-clockwise)
     rotateSlice(axis, layer, direction, customDuration = null, onComplete = null) {
       if (this.currentSize === 'pyraminx') {
         this.rotatePyraminx(direction, onComplete);
@@ -400,7 +683,7 @@
       const spacing = 1.0;
       const offset = (N - 1) / 2;
 
-      // Find all cubies in this layer
+      // Find all cubies in this slice layer
       const movingCubies = this.cubies.filter((c) => {
         if (axis === 'x') return c.userData.gridX === layer;
         if (axis === 'y') return c.userData.gridY === layer;
@@ -428,7 +711,6 @@
       const targetAngle = direction * (Math.PI / 2);
 
       if (duration === 0) {
-        // Instant turn
         this.pivotGroup.rotation[axis] = targetAngle;
         this.finishRotation(movingCubies, axis, layer, direction, N, spacing, offset, onComplete);
       } else {
@@ -438,7 +720,6 @@
         const step = (time) => {
           const elapsed = time - startTime;
           const progress = Math.min(elapsed / duration, 1.0);
-          // Quadratic ease-in-out
           const ease = progress < 0.5 ? 2 * progress * progress : -1 + (4 - 2 * progress) * progress;
 
           this.pivotGroup.rotation[axis] = startAngle + targetAngle * ease;
@@ -461,7 +742,6 @@
       movingCubies.forEach((c) => {
         this.cubeGroup.attach(c);
 
-        // Update logical grid coordinates based on rotation
         const gx = c.userData.gridX - offset;
         const gy = c.userData.gridY - offset;
         const gz = c.userData.gridZ - offset;
@@ -470,39 +750,21 @@
         let nGy = gy;
         let nGz = gz;
 
-        // Mathematical rotation formulas for 90 deg around axis
         if (axis === 'x') {
-          // Clockwise: y' = -z * dir, z' = y * dir
-          if (direction > 0) {
-            nGy = -gz;
-            nGz = gy;
-          } else {
-            nGy = gz;
-            nGz = -gy;
-          }
+          if (direction > 0) { nGy = -gz; nGz = gy; }
+          else { nGy = gz; nGz = -gy; }
         } else if (axis === 'y') {
-          if (direction > 0) {
-            nGx = gz;
-            nGz = -gx;
-          } else {
-            nGx = -gz;
-            nGz = gx;
-          }
+          if (direction > 0) { nGx = gz; nGz = -gx; }
+          else { nGx = -gz; nGz = gx; }
         } else if (axis === 'z') {
-          if (direction > 0) {
-            nGx = -gy;
-            nGy = gx;
-          } else {
-            nGx = gy;
-            nGy = -gx;
-          }
+          if (direction > 0) { nGx = -gy; nGy = gx; }
+          else { nGx = gy; nGy = -gx; }
         }
 
         c.userData.gridX = Math.round(nGx + offset);
         c.userData.gridY = Math.round(nGy + offset);
         c.userData.gridZ = Math.round(nGz + offset);
 
-        // Snap exact position to avoid floating point drift
         c.position.set(
           (c.userData.gridX - offset) * spacing,
           (c.userData.gridY - offset) * spacing,
@@ -515,7 +777,6 @@
 
       this.sound.playClick();
 
-      // Check if solved if user is playing
       if (!this.isScrambling && !this.isAutoSolving) {
         this.checkSolved();
       }
@@ -627,12 +888,10 @@
         sequence.push(base + mod);
       }
 
-      this.scrambleSequence = sequence;
       this.showScrambleDisplay(sequence.join(' '));
       this.showToast('Перемешивание кубика...');
 
-      // Animate scramble moves quickly
-      const scrambleSpeed = Math.min(this.animationSpeed, 90);
+      const scrambleSpeed = Math.min(this.animationSpeed, 80);
       let idx = 0;
 
       const runNextMove = () => {
@@ -678,7 +937,6 @@
         const currentStep = totalMoves - this.moveHistory.length;
         this.showToast(`Сборка: ход ${currentStep} из ${totalMoves}`);
 
-        // Inverse the move direction: -dir
         this.rotateSlice(lastMove.axis, lastMove.layer, -lastMove.dir, solveSpeed, runSolveStep);
       };
 
@@ -707,10 +965,6 @@
       if (this.currentSize === 'pyraminx') return;
       if (this.cubies.length === 0) return;
 
-      const N = parseInt(this.currentSize, 10);
-      const offset = (N - 1) / 2;
-
-      // Verify each face sticker matches its original orientation
       let isSolved = true;
 
       for (let cubie of this.cubies) {
@@ -719,7 +973,6 @@
             const worldDir = new THREE.Vector3();
             child.getWorldDirection(worldDir);
 
-            // Sticker must align with cardinal axes
             const expectedDir = child.userData.faceDir;
             let currentDir = '';
 
@@ -746,30 +999,14 @@
     celebrateVictory() {
       this.sound.playVictory();
 
-      // Launch Confetti
       if (window.confetti) {
-        window.confetti({
-          particleCount: 120,
-          spread: 80,
-          origin: { y: 0.6 }
-        });
+        window.confetti({ particleCount: 130, spread: 85, origin: { y: 0.6 } });
         setTimeout(() => {
-          window.confetti({
-            particleCount: 80,
-            angle: 60,
-            spread: 55,
-            origin: { x: 0 }
-          });
-          window.confetti({
-            particleCount: 80,
-            angle: 120,
-            spread: 55,
-            origin: { x: 1 }
-          });
+          window.confetti({ particleCount: 90, angle: 60, spread: 60, origin: { x: 0 } });
+          window.confetti({ particleCount: 90, angle: 120, spread: 60, origin: { x: 1 } });
         }, 250);
       }
 
-      // Show Victory Modal
       const modal = document.getElementById('victoryModal');
       document.getElementById('modalTime').innerText = document.getElementById('timerDigits').innerText;
       document.getElementById('modalMoves').innerText = this.moveCount;
@@ -798,7 +1035,6 @@
       const digits = document.getElementById('timerDigits');
       digits.classList.remove('running');
 
-      // Update best time in localStorage
       const best = localStorage.getItem('rubiks_best_time');
       if (!best || this.timerElapsed < parseFloat(best)) {
         localStorage.setItem('rubiks_best_time', this.timerElapsed);
@@ -848,117 +1084,130 @@
       box.style.display = 'none';
     }
 
-    // --- Interactive Mouse / Touch Raycasting Face Swiping ---
+    // --- Highlight Slice on Arrow Hover ---
+    highlightSlice(axis, layer) {
+      this.clearHighlightSlice();
+      this.cubies.forEach((c) => {
+        let match = false;
+        if (axis === 'x' && c.userData.gridX === layer) match = true;
+        if (axis === 'y' && c.userData.gridY === layer) match = true;
+        if (axis === 'z' && c.userData.gridZ === layer) match = true;
+
+        if (match) {
+          c.children.forEach((child) => {
+            if (child.material && child.material.emissive) {
+              child.material.emissive.setHex(0x22d3ee);
+              child.material.emissiveIntensity = 0.35;
+            }
+          });
+          this.highlightedCubies.push(c);
+        }
+      });
+    }
+
+    clearHighlightSlice() {
+      this.highlightedCubies.forEach((c) => {
+        c.children.forEach((child) => {
+          if (child.material && child.material.emissive) {
+            child.material.emissive.setHex(0x000000);
+            child.material.emissiveIntensity = 0;
+          }
+        });
+      });
+      this.highlightedCubies = [];
+    }
+
+    // --- Pointer & Arrow Raycasting Interaction ---
     setupInteraction() {
       const canvas = document.getElementById('cubeCanvas');
+      const tooltip = document.getElementById('arrowTooltip');
+      const tooltipText = document.getElementById('arrowTooltipText');
 
       canvas.addEventListener('pointerdown', (e) => {
-        if (this.isAnimating) return;
+        this.isPointerDown = true;
+        this.dragThresholdPassed = false;
+        this.pointerDownPos.set(e.clientX, e.clientY);
+      });
 
+      canvas.addEventListener('pointermove', (e) => {
         const rect = canvas.getBoundingClientRect();
         this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
         this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
+        if (this.isPointerDown) {
+          const dist = Math.hypot(e.clientX - this.pointerDownPos.x, e.clientY - this.pointerDownPos.y);
+          if (dist > 6) {
+            this.dragThresholdPassed = true;
+            // Dragging anywhere spins the 3D cube view!
+            tooltip.style.display = 'none';
+            this.clearHighlightSlice();
+            return;
+          }
+        }
+
+        // Raycast against 3D arrows first
         this.raycaster.setFromCamera(this.mouse, this.camera);
-        const intersects = this.raycaster.intersectObjects(this.cubeGroup.children, true);
+        const arrowHits = this.raycaster.intersectObjects(this.arrowMeshes);
 
-        if (intersects.length > 0) {
-          let hit = intersects[0];
-          // Find cubie parent
-          let cubie = hit.object;
-          while (cubie && !cubie.userData.isCubie && cubie.parent) {
-            cubie = cubie.parent;
+        if (arrowHits.length > 0) {
+          const hitArrow = arrowHits[0].object;
+          canvas.style.cursor = 'pointer';
+
+          if (this.activeHoveredArrow !== hitArrow) {
+            if (this.activeHoveredArrow) {
+              this.activeHoveredArrow.scale.set(1, 1, 1);
+            }
+            this.activeHoveredArrow = hitArrow;
+            hitArrow.scale.set(1.22, 1.22, 1.22);
+
+            this.highlightSlice(hitArrow.userData.axis, hitArrow.userData.layer);
           }
 
-          if (cubie && cubie.userData.isCubie) {
-            this.isDraggingFace = true;
-            this.selectedCubie = cubie;
-            this.selectedFaceNormal = hit.face.normal.clone();
-            // Transform normal to world space
-            this.selectedFaceNormal.transformDirection(hit.object.matrixWorld);
-            this.pointerDownPos.set(e.clientX, e.clientY);
-            this.controls.enabled = false; // Disable camera rotate while turning face
+          // Show Tooltip
+          tooltipText.innerText = hitArrow.userData.desc;
+          tooltip.style.left = `${e.clientX}px`;
+          tooltip.style.top = `${e.clientY}px`;
+          tooltip.style.display = 'block';
+        } else {
+          canvas.style.cursor = 'grab';
+          if (this.activeHoveredArrow) {
+            this.activeHoveredArrow.scale.set(1, 1, 1);
+            this.activeHoveredArrow = null;
+            this.clearHighlightSlice();
+            tooltip.style.display = 'none';
           }
         }
       });
 
-      window.addEventListener('pointermove', (e) => {
-        if (!this.isDraggingFace || !this.selectedCubie) return;
+      canvas.addEventListener('pointerup', (e) => {
+        this.isPointerDown = false;
 
-        const deltaX = e.clientX - this.pointerDownPos.x;
-        const deltaY = e.clientY - this.pointerDownPos.y;
-        const dist = Math.hypot(deltaX, deltaY);
+        // If it was a click (not a camera drag) and clicked on an arrow:
+        if (!this.dragThresholdPassed) {
+          this.raycaster.setFromCamera(this.mouse, this.camera);
+          const arrowHits = this.raycaster.intersectObjects(this.arrowMeshes);
 
-        if (dist > 25) {
-          this.handleFaceSwipe(deltaX, deltaY);
-          this.isDraggingFace = false;
-          this.selectedCubie = null;
-          this.controls.enabled = true;
+          if (arrowHits.length > 0) {
+            const hitArrow = arrowHits[0].object;
+            const data = hitArrow.userData;
+
+            this.moveHistory.push({
+              axis: data.axis,
+              layer: data.layer,
+              dir: data.dir,
+              moveStr: data.move
+            });
+            this.updateMoveCounter(this.moveHistory.length);
+
+            if (!this.timerRunning && this.moveHistory.length === 1) {
+              this.startTimer();
+            }
+
+            this.rotateSlice(data.axis, data.layer, data.dir, this.animationSpeed);
+            tooltip.style.display = 'none';
+          }
         }
       });
-
-      window.addEventListener('pointerup', () => {
-        this.isDraggingFace = false;
-        this.selectedCubie = null;
-        this.controls.enabled = true;
-      });
-    }
-
-    handleFaceSwipe(dx, dy) {
-      if (!this.selectedCubie || !this.selectedFaceNormal) return;
-
-      const norm = this.selectedFaceNormal;
-      const c = this.selectedCubie.userData;
-
-      // Project swipe to cardinal plane
-      const isHorizontal = Math.abs(dx) > Math.abs(dy);
-
-      let axis = 'y';
-      let layer = c.gridY;
-      let dir = dx > 0 ? -1 : 1;
-
-      // Determine rotation axis and layer based on the face touched
-      if (Math.abs(norm.y) > 0.7) {
-        // Top or Bottom face
-        if (isHorizontal) {
-          axis = 'z';
-          layer = c.gridZ;
-          dir = norm.y > 0 ? (dx > 0 ? 1 : -1) : (dx > 0 ? -1 : 1);
-        } else {
-          axis = 'x';
-          layer = c.gridX;
-          dir = norm.y > 0 ? (dy > 0 ? -1 : 1) : (dy > 0 ? 1 : -1);
-        }
-      } else if (Math.abs(norm.x) > 0.7) {
-        // Left or Right face
-        if (isHorizontal) {
-          axis = 'y';
-          layer = c.gridY;
-          dir = norm.x > 0 ? (dx > 0 ? -1 : 1) : (dx > 0 ? 1 : -1);
-        } else {
-          axis = 'z';
-          layer = c.gridZ;
-          dir = norm.x > 0 ? (dy > 0 ? 1 : -1) : (dy > 0 ? -1 : 1);
-        }
-      } else {
-        // Front or Back face
-        if (isHorizontal) {
-          axis = 'y';
-          layer = c.gridY;
-          dir = norm.z > 0 ? (dx > 0 ? -1 : 1) : (dx > 0 ? 1 : -1);
-        } else {
-          axis = 'x';
-          layer = c.gridX;
-          dir = norm.z > 0 ? (dy > 0 ? 1 : -1) : (dy > 0 ? -1 : 1);
-        }
-      }
-
-      this.moveHistory.push({ axis, layer, dir });
-      this.updateMoveCounter(this.moveHistory.length);
-      if (!this.timerRunning && this.moveHistory.length === 1) {
-        this.startTimer();
-      }
-      this.rotateSlice(axis, layer, dir, this.animationSpeed);
     }
 
     // --- UI Bindings ---
@@ -972,6 +1221,16 @@
           btn.classList.add('active');
           const type = btn.getAttribute('data-type');
           this.buildPuzzle(type);
+        });
+      });
+
+      // 360 Viewpoint Switcher buttons
+      document.querySelectorAll('.cam-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.cam-btn').forEach((b) => b.classList.remove('active'));
+          btn.classList.add('active');
+          const view = btn.getAttribute('data-cam');
+          this.setCameraView(view);
         });
       });
 
@@ -990,6 +1249,14 @@
 
       // Undo button
       document.getElementById('undoMoveBtn').addEventListener('click', () => this.undoLastMove());
+
+      // Toggle Arrows visibility button
+      const toggleArrowsBtn = document.getElementById('toggleArrowsBtn');
+      toggleArrowsBtn.addEventListener('click', () => {
+        this.arrowGroup.visible = !this.arrowGroup.visible;
+        toggleArrowsBtn.classList.toggle('active', this.arrowGroup.visible);
+        toggleArrowsBtn.innerText = this.arrowGroup.visible ? '🎯 Стрелки: Вкл' : '🎯 Стрелки: Скрыты';
+      });
 
       // Animation speed select
       const speedSelect = document.getElementById('speedSelect');
@@ -1018,12 +1285,7 @@
         this.showToast(`Тема: ${this.currentThemeName.toUpperCase()}`);
       });
 
-      // Reset camera button
-      document.getElementById('resetCameraBtn').addEventListener('click', () => {
-        this.setDefaultCamera();
-      });
-
-      // Toggle virtual controls
+      // Toggle virtual notation controls
       const toggleControlsBtn = document.getElementById('toggleControlsBtn');
       toggleControlsBtn.addEventListener('click', () => {
         const vControls = document.getElementById('virtualControls');
@@ -1069,7 +1331,6 @@
       window.addEventListener('keydown', (e) => {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
 
-        // Spacebar to toggle timer
         if (e.code === 'Space') {
           e.preventDefault();
           if (this.timerRunning) this.stopTimer();
@@ -1077,14 +1338,12 @@
           return;
         }
 
-        // Ctrl + Z to undo
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
           e.preventDefault();
           this.undoLastMove();
           return;
         }
 
-        // Standard WCA Face Keys: U, D, L, R, F, B
         const key = e.key.toUpperCase();
         if (['U', 'D', 'L', 'R', 'F', 'B'].includes(key)) {
           const move = e.shiftKey ? `${key}'` : key;
@@ -1096,6 +1355,17 @@
     // --- Animation Loop ---
     animate() {
       requestAnimationFrame(() => this.animate());
+
+      // Smooth camera transition when preset is clicked
+      if (this.isTransitioningCamera && this.targetCameraPos) {
+        this.camera.position.lerp(this.targetCameraPos, 0.12);
+        this.controls.target.set(0, 0, 0);
+        if (this.camera.position.distanceTo(this.targetCameraPos) < 0.05) {
+          this.camera.position.copy(this.targetCameraPos);
+          this.isTransitioningCamera = false;
+        }
+      }
+
       this.controls.update();
       this.renderer.render(this.scene, this.camera);
     }

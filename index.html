@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Кубик Рубика 3D — Играй, Разбирай и Собирай</title>
-  <meta name="description" content="Интерактивный 3D Кубик Рубика онлайн: 2x2, 3x3, 4x4, 5x5 и Пирамидка. Кнопки разобрать и собрать, таймер спидкубинга и плавная 3D анимация.">
+  <title>Кубик Рубика 3D — Полный обзор 360° и интерактивные стрелки</title>
+  <meta name="description" content="3D Кубик Рубика онлайн с полным обзором на 360 градусов, интерактивными стрелками на ребрах, кнопками разобрать и собрать.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎲</text></svg>">
   <link rel="stylesheet" href="styles.css">
   <!-- Three.js and OrbitControls -->
@@ -48,9 +48,31 @@
       </div>
     </header>
 
+    <!-- 360 Viewpoint Switcher Toolbar -->
+    <nav class="view-toolbar" aria-label="360 обзор">
+      <span class="view-toolbar-label">🔄 Обзор 360°:</span>
+      <button class="cam-btn" data-cam="front">Спереди (F)</button>
+      <button class="cam-btn" data-cam="back">Сзади (B)</button>
+      <button class="cam-btn" data-cam="top">Сверху (U)</button>
+      <button class="cam-btn" data-cam="bottom">Снизу (D)</button>
+      <button class="cam-btn" data-cam="left">Слева (L)</button>
+      <button class="cam-btn" data-cam="right">Справа (R)</button>
+      <button class="cam-btn active" data-cam="iso">3D Угол</button>
+    </nav>
+
     <!-- Main 3D Canvas Container -->
     <main id="canvas-container">
       <canvas id="cubeCanvas"></canvas>
+
+      <!-- Arrow Action Hint Tooltip -->
+      <div id="arrowTooltip" class="arrow-tooltip">
+        <span id="arrowTooltipText">Стрелка поворота</span>
+      </div>
+
+      <!-- Interactive Helper Banner -->
+      <div class="helper-banner">
+        💡 Зажмите и тяните в любом месте для свободного <b>вращения на 360°</b>. Наведите курсор на грань — появятся <b>стрелки поворота</b>!
+      </div>
 
       <!-- Scramble Notation Overlay -->
       <div id="scrambleDisplay" class="scramble-box" style="display: none;">
@@ -136,8 +158,8 @@
           </select>
         </div>
         <div class="view-group">
-          <button id="resetCameraBtn" class="text-btn">🎥 Сбросить камеру</button>
-          <button id="toggleControlsBtn" class="text-btn">⌨ Кнопки ходов</button>
+          <button id="toggleArrowsBtn" class="text-btn active">🎯 Стрелки: Всегда</button>
+          <button id="toggleControlsBtn" class="text-btn">⌨ Кнопки нотации</button>
         </div>
       </div>
     </footer>
@@ -174,18 +196,18 @@
         </div>
         <div class="modal-body">
           <div class="help-section">
-            <h4>🖱 Управление мышью / пальцем</h4>
-            <ul>
-              <li><strong>Вращение кубика:</strong> зажмите пустую область фона и потяните, чтобы повернуть камеру.</li>
-              <li><strong>Вращение грани:</strong> зажмите грань кубика и потяните её в нужную сторону.</li>
-              <li><strong>Масштаб:</strong> колесико мыши или жест щипка двумя пальцами.</li>
-            </ul>
+            <h4>🔄 Вращение на 360 градусов</h4>
+            <p>Зажмите левую кнопку мыши (или палец на экране смартфона) в любой точке и свободно крутите кубик во всех направлениях на 360°, чтобы рассмотреть любую деталь.</p>
           </div>
           <div class="help-section">
-            <h4>⌨ Горячие клавиши (WCA нотация)</h4>
+            <h4>🎯 Интерактивные стрелки на ребрах</h4>
+            <p>Наведите курсор на любую грань или ребро — появятся яркие светящиеся стрелки. При клике на стрелку грань сразу же повернется в указанном направлении!</p>
+          </div>
+          <div class="help-section">
+            <h4>⌨ Горячие клавиши (WCA)</h4>
             <div class="keys-grid">
               <div><kbd>U</kbd> Вверх (по часовой)</div>
-              <div><kbd>Shift + U</kbd> Вверх (против часовой)</div>
+              <div><kbd>Shift + U</kbd> Вверх (U')</div>
               <div><kbd>D</kbd> Низ (Down)</div>
               <div><kbd>Shift + D</kbd> Низ (D')</div>
               <div><kbd>L</kbd> Левая (Left)</div>
@@ -197,13 +219,8 @@
               <div><kbd>B</kbd> Задняя (Back)</div>
               <div><kbd>Shift + B</kbd> Задняя (B')</div>
               <div><kbd>Пробел</kbd> Старт / Стоп таймера</div>
-              <div><kbd>Ctrl + Z</kbd> Отменить последний ход</div>
+              <div><kbd>Ctrl + Z</kbd> Отменить ход</div>
             </div>
-          </div>
-          <div class="help-section">
-            <h4>✨ Волшебные кнопки</h4>
-            <p><strong>Разобрать:</strong> генерирует случайный скрамбл и анимирует перемешивание.</p>
-            <p><strong>Собрать:</strong> автоматически решает кубик шаг за шагом, отматывая ходы обратно к идеальному состоянию!</p>
           </div>
         </div>
         <div class="modal-footer">
