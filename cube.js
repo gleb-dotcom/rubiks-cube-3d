@@ -360,15 +360,16 @@
       let target = new THREE.Vector3();
 
       switch (viewName) {
-        case 'top': target.set(0, dist * 1.4, 0.001); break; // Yellow
-        case 'bottom': target.set(0, -dist * 1.4, 0.001); break; // White
-        case 'front': target.set(0, 0, dist * 1.4); break; // Green
-        case 'back': target.set(0, 0, -dist * 1.4); break; // Blue
-        case 'right': target.set(dist * 1.4, 0, 0); break; // Red
-        case 'left': target.set(-dist * 1.4, 0, 0); break; // Orange
+        case 'top': target.set(0, dist * 1.4, 0.001); this.selectFace('+y'); break; // Yellow
+        case 'bottom': target.set(0, -dist * 1.4, 0.001); this.selectFace('-y'); break; // White
+        case 'front': target.set(0, 0, dist * 1.4); this.selectFace('+z'); break; // Green
+        case 'back': target.set(0, 0, -dist * 1.4); this.selectFace('-z'); break; // Blue
+        case 'right': target.set(dist * 1.4, 0, 0); this.selectFace('+x'); break; // Red
+        case 'left': target.set(-dist * 1.4, 0, 0); this.selectFace('-x'); break; // Orange
         case 'iso':
         default:
           target.set(dist * 0.9, dist * 0.8, dist * 1.2);
+          this.selectFace('+z');
           break;
       }
 
@@ -415,6 +416,7 @@
       this.floorShadow.position.y = -(N * 0.6 + 1.2);
 
       this.setDefaultCamera();
+      this.selectFace('+z');
     }
 
     // --- Build N x N x N Cube (GAN Beveled Tile Edition) ---
@@ -550,7 +552,7 @@
       this.cubies.push(baseTetra);
     }
 
-    // --- Dynamic Arrow Controls on Hover ---
+    // --- Persistent Face Selection & Directional Arrows ---
     clearArrows() {
       while (this.arrowGroup.children.length > 0) {
         const a = this.arrowGroup.children[0];
@@ -559,36 +561,57 @@
         if (a.geometry) a.geometry.dispose();
       }
       this.arrowMeshes = [];
-      this.currentHoveredFace = null;
-      this.currentHoveredGrid = null;
     }
 
-    // Displays directional arrows directly over the hovered face and cubie
-    updateDirectionArrowsOnFace(faceDir, cubie) {
-      if (this.currentHoveredFace === faceDir &&
-          this.currentHoveredGrid &&
-          this.currentHoveredGrid.x === cubie.userData.gridX &&
-          this.currentHoveredGrid.y === cubie.userData.gridY &&
-          this.currentHoveredGrid.z === cubie.userData.gridZ) {
-        return; // already showing arrows for this exact face/cubie
+    getFaceName(faceDir) {
+      switch (faceDir) {
+        case '+y': return 'Желтая (Сверху)';
+        case '-y': return 'Белая (Снизу)';
+        case '+z': return 'Зеленая (Спереди)';
+        case '-z': return 'Синяя (Сзади)';
+        case '+x': return 'Красная (Справа)';
+        case '-x': return 'Оранжевая (Слева)';
+        default: return 'Грань';
+      }
+    }
+
+    // Selects a face and creates persistent 4 directional arrows pinned to that face
+    selectFace(faceDir, gx = null, gy = null, gz = null) {
+      const N = parseInt(this.currentSize, 10);
+      const mid = Math.floor(N / 2);
+
+      if (gx === null || gy === null || gz === null) {
+        // Default to center of that face
+        if (faceDir === '+z') { gx = mid; gy = mid; gz = N - 1; }
+        else if (faceDir === '-z') { gx = mid; gy = mid; gz = 0; }
+        else if (faceDir === '+y') { gx = mid; gy = N - 1; gz = mid; }
+        else if (faceDir === '-y') { gx = mid; gy = 0; gz = mid; }
+        else if (faceDir === '+x') { gx = N - 1; gy = mid; gz = mid; }
+        else if (faceDir === '-x') { gx = 0; gy = mid; gz = mid; }
       }
 
+      const faceName = this.getFaceName(faceDir);
+      this.selectedFace = { faceDir, name: faceName, gridX: gx, gridY: gy, gridZ: gz };
+
+      // Update on-screen selection badge
+      const badge = document.getElementById('selectionText');
+      if (badge) {
+        badge.innerHTML = `Выбрана грань: <b>${faceName}</b> • Нажимайте ⬆️ ⬇️ ⬅️ ➡️ на клавиатуре`;
+      }
+
+      this.renderSelectedFaceArrows();
+    }
+
+    renderSelectedFaceArrows() {
       this.clearArrows();
-      this.currentHoveredFace = faceDir;
-      this.currentHoveredGrid = {
-        x: cubie.userData.gridX,
-        y: cubie.userData.gridY,
-        z: cubie.userData.gridZ
-      };
+      if (!this.selectedFace) return;
 
       const N = parseInt(this.currentSize, 10);
       const offset = (N - 1) / 2;
       const spacing = 1.0;
       const faceDist = offset + 0.62;
 
-      const gx = cubie.userData.gridX;
-      const gy = cubie.userData.gridY;
-      const gz = cubie.userData.gridZ;
+      const { faceDir, gridX: gx, gridY: gy, gridZ: gz } = this.selectedFace;
 
       const cubiePos = {
         x: (gx - offset) * spacing,
@@ -597,108 +620,85 @@
       };
 
       const arrowConfigs = [];
-      const d = 0.52; // arrow distance offset from cubie center
+      const d = 0.54; // distance offset for arrows from selected piece
 
       if (faceDir === '+z') {
         // FRONT FACE (Green)
-        // Up: rotate col gx upwards (axis x, dir -1)
         arrowConfigs.push({
           pos: [cubiePos.x, cubiePos.y + d, faceDist],
           rot: [0, 0, 0], symbol: '⬆', label: 'Вверх',
           axis: 'x', layer: gx, dir: -1,
-          desc: `Повернуть вертикальный слой вверх (ход ${gx === N - 1 ? 'R' : (gx === 0 ? "L'" : 'M')})`
+          desc: `Повернуть слой вверх (⬆️)`
         });
-        // Down: rotate col gx downwards (axis x, dir +1)
         arrowConfigs.push({
           pos: [cubiePos.x, cubiePos.y - d, faceDist],
           rot: [0, 0, 0], symbol: '⬇', label: 'Вниз',
           axis: 'x', layer: gx, dir: 1,
-          desc: `Повернуть вертикальный слой вниз (ход ${gx === N - 1 ? "R'" : (gx === 0 ? 'L' : "M'")})`
+          desc: `Повернуть слой вниз (⬇️)`
         });
-        // Left: rotate row gy to left (axis y, dir -1)
         arrowConfigs.push({
           pos: [cubiePos.x - d, cubiePos.y, faceDist],
           rot: [0, 0, 0], symbol: '⬅', label: 'Влево',
           axis: 'y', layer: gy, dir: -1,
-          desc: `Повернуть горизонтальный слой влево (ход ${gy === N - 1 ? 'U' : (gy === 0 ? "D'" : 'E')})`
+          desc: `Повернуть слой влево (⬅️)`
         });
-        // Right: rotate row gy to right (axis y, dir +1)
         arrowConfigs.push({
           pos: [cubiePos.x + d, cubiePos.y, faceDist],
           rot: [0, 0, 0], symbol: '➡', label: 'Вправо',
           axis: 'y', layer: gy, dir: 1,
-          desc: `Повернуть горизонтальный слой вправо (ход ${gy === N - 1 ? "U'" : (gy === 0 ? 'D' : "E'")})`
-        });
-        // Clockwise Face turn
-        arrowConfigs.push({
-          pos: [offset * 0.7, offset * 0.7, faceDist],
-          rot: [0, 0, 0], symbol: '↻', label: 'F',
-          axis: 'z', layer: N - 1, dir: -1,
-          desc: 'Повернуть переднюю грань F по часовой стрелке ↻'
+          desc: `Повернуть слой вправо (➡️)`
         });
       } else if (faceDir === '+y') {
         // TOP FACE (Yellow)
         arrowConfigs.push({
           pos: [cubiePos.x, faceDist, cubiePos.z - d],
-          rot: [-Math.PI / 2, 0, 0], symbol: '⬆', label: 'Назад',
+          rot: [-Math.PI / 2, 0, 0], symbol: '⬆', label: 'Вверх',
           axis: 'x', layer: gx, dir: -1,
-          desc: `Повернуть слой назад (ход ${gx === N - 1 ? 'R' : (gx === 0 ? "L'" : 'M')})`
+          desc: `Повернуть слой вверх (⬆️)`
         });
         arrowConfigs.push({
           pos: [cubiePos.x, faceDist, cubiePos.z + d],
-          rot: [-Math.PI / 2, 0, 0], symbol: '⬇', label: 'Вперед',
+          rot: [-Math.PI / 2, 0, 0], symbol: '⬇', label: 'Вниз',
           axis: 'x', layer: gx, dir: 1,
-          desc: `Повернуть слой вперед (ход ${gx === N - 1 ? "R'" : (gx === 0 ? 'L' : "M'")})`
+          desc: `Повернуть слой вниз (⬇️)`
         });
         arrowConfigs.push({
           pos: [cubiePos.x - d, faceDist, cubiePos.z],
           rot: [-Math.PI / 2, 0, 0], symbol: '⬅', label: 'Влево',
           axis: 'z', layer: gz, dir: -1,
-          desc: `Повернуть слой влево (ход ${gz === N - 1 ? "F'" : (gz === 0 ? 'B' : 'S')})`
+          desc: `Повернуть слой влево (⬅️)`
         });
         arrowConfigs.push({
           pos: [cubiePos.x + d, faceDist, cubiePos.z],
           rot: [-Math.PI / 2, 0, 0], symbol: '➡', label: 'Вправо',
           axis: 'z', layer: gz, dir: 1,
-          desc: `Повернуть слой вправо (ход ${gz === N - 1 ? 'F' : (gz === 0 ? "B'" : "S'")})`
-        });
-        arrowConfigs.push({
-          pos: [offset * 0.7, faceDist, offset * 0.7],
-          rot: [-Math.PI / 2, 0, 0], symbol: '↻', label: 'U',
-          axis: 'y', layer: N - 1, dir: -1,
-          desc: 'Повернуть верхнюю желтую грань U по часовой ↻'
+          desc: `Повернуть слой вправо (➡️)`
         });
       } else if (faceDir === '-y') {
         // BOTTOM FACE (White)
         arrowConfigs.push({
           pos: [cubiePos.x, -faceDist, cubiePos.z + d],
-          rot: [Math.PI / 2, 0, 0], symbol: '⬆', label: 'Вперед',
+          rot: [Math.PI / 2, 0, 0], symbol: '⬆', label: 'Вверх',
           axis: 'x', layer: gx, dir: 1,
-          desc: `Повернуть слой вперед`
+          desc: `Повернуть слой вверх (⬆️)`
         });
         arrowConfigs.push({
           pos: [cubiePos.x, -faceDist, cubiePos.z - d],
-          rot: [Math.PI / 2, 0, 0], symbol: '⬇', label: 'Назад',
+          rot: [Math.PI / 2, 0, 0], symbol: '⬇', label: 'Вниз',
           axis: 'x', layer: gx, dir: -1,
-          desc: `Повернуть слой назад`
+          desc: `Повернуть слой вниз (⬇️)`
         });
         arrowConfigs.push({
           pos: [cubiePos.x - d, -faceDist, cubiePos.z],
           rot: [Math.PI / 2, 0, 0], symbol: '⬅', label: 'Влево',
           axis: 'z', layer: gz, dir: 1,
-          desc: `Повернуть слой влево`
+          desc: `Повернуть слой влево (⬅️)`
         });
         arrowConfigs.push({
           pos: [cubiePos.x + d, -faceDist, cubiePos.z],
           rot: [Math.PI / 2, 0, 0], symbol: '➡', label: 'Вправо',
           axis: 'z', layer: gz, dir: -1,
-          desc: `Повернуть слой вправо`
-        });
-        arrowConfigs.push({
-          pos: [offset * 0.7, -faceDist, offset * 0.7],
-          rot: [Math.PI / 2, 0, 0], symbol: '↻', label: 'D',
-          axis: 'y', layer: 0, dir: 1,
-          desc: 'Повернуть нижнюю белую грань D по часовой ↻'
+          desc: `Повернуть слой вправо (➡️)`
         });
       } else if (faceDir === '+x') {
         // RIGHT FACE (Red)
@@ -706,31 +706,25 @@
           pos: [faceDist, cubiePos.y + d, cubiePos.z],
           rot: [0, Math.PI / 2, 0], symbol: '⬆', label: 'Вверх',
           axis: 'z', layer: gz, dir: 1,
-          desc: `Повернуть слой вверх`
+          desc: `Повернуть слой вверх (⬆️)`
         });
         arrowConfigs.push({
           pos: [faceDist, cubiePos.y - d, cubiePos.z],
           rot: [0, Math.PI / 2, 0], symbol: '⬇', label: 'Вниз',
           axis: 'z', layer: gz, dir: -1,
-          desc: `Повернуть слой вниз`
+          desc: `Повернуть слой вниз (⬇️)`
         });
         arrowConfigs.push({
           pos: [faceDist, cubiePos.y, cubiePos.z - d],
-          rot: [0, Math.PI / 2, 0], symbol: '⬅', label: 'Назад',
+          rot: [0, Math.PI / 2, 0], symbol: '⬅', label: 'Влево',
           axis: 'y', layer: gy, dir: 1,
-          desc: `Повернуть слой назад`
+          desc: `Повернуть слой влево (⬅️)`
         });
         arrowConfigs.push({
           pos: [faceDist, cubiePos.y, cubiePos.z + d],
-          rot: [0, Math.PI / 2, 0], symbol: '➡', label: 'Вперед',
+          rot: [0, Math.PI / 2, 0], symbol: '➡', label: 'Вправо',
           axis: 'y', layer: gy, dir: -1,
-          desc: `Повернуть слой вперед`
-        });
-        arrowConfigs.push({
-          pos: [faceDist, offset * 0.7, offset * 0.7],
-          rot: [0, Math.PI / 2, 0], symbol: '↻', label: 'R',
-          axis: 'x', layer: N - 1, dir: -1,
-          desc: 'Повернуть правую красную грань R по часовой ↻'
+          desc: `Повернуть слой вправо (➡️)`
         });
       } else if (faceDir === '-x') {
         // LEFT FACE (Orange)
@@ -738,31 +732,25 @@
           pos: [-faceDist, cubiePos.y + d, cubiePos.z],
           rot: [0, -Math.PI / 2, 0], symbol: '⬆', label: 'Вверх',
           axis: 'z', layer: gz, dir: -1,
-          desc: `Повернуть слой вверх`
+          desc: `Повернуть слой вверх (⬆️)`
         });
         arrowConfigs.push({
           pos: [-faceDist, cubiePos.y - d, cubiePos.z],
           rot: [0, -Math.PI / 2, 0], symbol: '⬇', label: 'Вниз',
           axis: 'z', layer: gz, dir: 1,
-          desc: `Повернуть слой вниз`
+          desc: `Повернуть слой вниз (⬇️)`
         });
         arrowConfigs.push({
           pos: [-faceDist, cubiePos.y, cubiePos.z + d],
-          rot: [0, -Math.PI / 2, 0], symbol: '⬅', label: 'Вперед',
+          rot: [0, -Math.PI / 2, 0], symbol: '⬅', label: 'Влево',
           axis: 'y', layer: gy, dir: -1,
-          desc: `Повернуть слой вперед`
+          desc: `Повернуть слой влево (⬅️)`
         });
         arrowConfigs.push({
           pos: [-faceDist, cubiePos.y, cubiePos.z - d],
-          rot: [0, -Math.PI / 2, 0], symbol: '➡', label: 'Назад',
+          rot: [0, -Math.PI / 2, 0], symbol: '➡', label: 'Вправо',
           axis: 'y', layer: gy, dir: 1,
-          desc: `Повернуть слой назад`
-        });
-        arrowConfigs.push({
-          pos: [-faceDist, offset * 0.7, offset * 0.7],
-          rot: [0, -Math.PI / 2, 0], symbol: '↻', label: 'L',
-          axis: 'x', layer: 0, dir: 1,
-          desc: 'Повернуть левую оранжевую грань L по часовой ↻'
+          desc: `Повернуть слой вправо (➡️)`
         });
       } else if (faceDir === '-z') {
         // BACK FACE (Blue)
@@ -770,33 +758,50 @@
           pos: [cubiePos.x, cubiePos.y + d, -faceDist],
           rot: [0, Math.PI, 0], symbol: '⬆', label: 'Вверх',
           axis: 'x', layer: gx, dir: 1,
-          desc: `Повернуть слой вверх`
+          desc: `Повернуть слой вверх (⬆️)`
         });
         arrowConfigs.push({
           pos: [cubiePos.x, cubiePos.y - d, -faceDist],
           rot: [0, Math.PI, 0], symbol: '⬇', label: 'Вниз',
           axis: 'x', layer: gx, dir: -1,
-          desc: `Повернуть слой вниз`
+          desc: `Повернуть слой вниз (⬇️)`
         });
         arrowConfigs.push({
           pos: [cubiePos.x + d, cubiePos.y, -faceDist],
           rot: [0, Math.PI, 0], symbol: '⬅', label: 'Влево',
           axis: 'y', layer: gy, dir: -1,
-          desc: `Повернуть слой влево`
+          desc: `Повернуть слой влево (⬅️)`
         });
         arrowConfigs.push({
           pos: [cubiePos.x - d, cubiePos.y, -faceDist],
           rot: [0, Math.PI, 0], symbol: '➡', label: 'Вправо',
           axis: 'y', layer: gy, dir: 1,
-          desc: `Повернуть слой вправо`
-        });
-        arrowConfigs.push({
-          pos: [offset * 0.7, offset * 0.7, -faceDist],
-          rot: [0, Math.PI, 0], symbol: '↻', label: 'B',
-          axis: 'z', layer: 0, dir: 1,
-          desc: 'Повернуть заднюю синюю грань B по часовой ↻'
+          desc: `Повернуть слой вправо (➡️)`
         });
       }
+
+      // Add Glowing Selection Frame around selected piece
+      const frameGeo = new THREE.BufferGeometry();
+      const hs = 0.47;
+      const v = new Float32Array([
+        -hs, -hs, 0,   hs, -hs, 0,
+         hs, -hs, 0,   hs,  hs, 0,
+         hs,  hs, 0,  -hs,  hs, 0,
+        -hs,  hs, 0,  -hs, -hs, 0
+      ]);
+      frameGeo.setAttribute('position', new THREE.BufferAttribute(v, 3));
+      const frameMat = new THREE.LineBasicMaterial({ color: 0xffe600, linewidth: 3 });
+      const selFrame = new THREE.LineSegments(frameGeo, frameMat);
+
+      // Position frame on the selected face
+      if (faceDir === '+z') { selFrame.position.set(cubiePos.x, cubiePos.y, faceDist); }
+      else if (faceDir === '-z') { selFrame.position.set(cubiePos.x, cubiePos.y, -faceDist); selFrame.rotation.y = Math.PI; }
+      else if (faceDir === '+y') { selFrame.position.set(cubiePos.x, faceDist, cubiePos.z); selFrame.rotation.x = -Math.PI / 2; }
+      else if (faceDir === '-y') { selFrame.position.set(cubiePos.x, -faceDist, cubiePos.z); selFrame.rotation.x = Math.PI / 2; }
+      else if (faceDir === '+x') { selFrame.position.set(faceDist, cubiePos.y, cubiePos.z); selFrame.rotation.y = Math.PI / 2; }
+      else if (faceDir === '-x') { selFrame.position.set(-faceDist, cubiePos.y, cubiePos.z); selFrame.rotation.y = -Math.PI / 2; }
+
+      this.arrowGroup.add(selFrame);
 
       const planeGeo = new THREE.PlaneGeometry(0.48, 0.48);
 
@@ -815,6 +820,7 @@
 
         mesh.userData = {
           isArrow: true,
+          symbol: cfg.symbol,
           axis: cfg.axis,
           layer: cfg.layer,
           dir: cfg.dir,
@@ -929,9 +935,9 @@
       this.isAnimating = false;
 
       this.sound.playClick();
-      this.clearArrows();
 
       if (!this.isScrambling && !this.isAutoSolving) {
+        this.renderSelectedFaceArrows();
         this.checkSolved();
       }
 
@@ -1335,29 +1341,10 @@
           tooltip.style.display = 'none';
         }
 
-        // 2. Raycast against the cube face to spawn/update directional arrows on that face!
+        // Raycast against the cube face to update hover cursor
         const cubeHits = this.raycaster.intersectObjects(this.cubeGroup.children, true);
         if (cubeHits.length > 0) {
-          const hit = cubeHits[0];
-          let cubie = hit.object;
-          while (cubie && !cubie.userData.isCubie && cubie.parent) {
-            cubie = cubie.parent;
-          }
-
-          if (cubie && cubie.userData.isCubie && hit.face) {
-            canvas.style.cursor = 'pointer';
-
-            // Find face normal in world space
-            const worldNorm = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
-            let faceDir = '+z';
-
-            if (Math.abs(worldNorm.x) > 0.8) faceDir = worldNorm.x > 0 ? '+x' : '-x';
-            else if (Math.abs(worldNorm.y) > 0.8) faceDir = worldNorm.y > 0 ? '+y' : '-y';
-            else if (Math.abs(worldNorm.z) > 0.8) faceDir = worldNorm.z > 0 ? '+z' : '-z';
-
-            // Spawn arrows on this face!
-            this.updateDirectionArrowsOnFace(faceDir, cubie);
-          }
+          canvas.style.cursor = 'pointer';
         } else {
           canvas.style.cursor = 'grab';
           tooltip.style.display = 'none';
@@ -1367,114 +1354,88 @@
       canvas.addEventListener('pointerup', () => {
         this.isPointerDown = false;
 
-        // If it was a click (not a camera drag) and clicked on an arrow:
         if (!this.dragThresholdPassed) {
           this.raycaster.setFromCamera(this.mouse, this.camera);
-          const arrowHits = this.raycaster.intersectObjects(this.arrowMeshes);
 
+          // 1. Check if user clicked directly on one of the arrows:
+          const arrowHits = this.raycaster.intersectObjects(this.arrowMeshes);
           if (arrowHits.length > 0) {
             const hitArrow = arrowHits[0].object;
             const data = hitArrow.userData;
+            this.executeArrowMove(data);
+            return;
+          }
 
-            this.moveHistory.push({
-              axis: data.axis,
-              layer: data.layer,
-              dir: data.dir,
-              moveStr: 'MOVE'
-            });
-            this.updateMoveCounter(this.moveHistory.length);
-
-            if (!this.timerRunning && this.moveHistory.length === 1) {
-              this.startTimer();
+          // 2. Check if user clicked on a cubie: SELECT THAT FACE!
+          const cubeHits = this.raycaster.intersectObjects(this.cubeGroup.children, true);
+          if (cubeHits.length > 0) {
+            const hit = cubeHits[0];
+            let cubie = hit.object;
+            while (cubie && !cubie.userData.isCubie && cubie.parent) {
+              cubie = cubie.parent;
             }
 
-            this.rotateSlice(data.axis, data.layer, data.dir, this.animationSpeed);
-            tooltip.style.display = 'none';
+            if (cubie && cubie.userData.isCubie && hit.face) {
+              const worldNorm = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
+              let faceDir = '+z';
+              if (Math.abs(worldNorm.x) > 0.8) faceDir = worldNorm.x > 0 ? '+x' : '-x';
+              else if (Math.abs(worldNorm.y) > 0.8) faceDir = worldNorm.y > 0 ? '+y' : '-y';
+              else if (Math.abs(worldNorm.z) > 0.8) faceDir = worldNorm.z > 0 ? '+z' : '-z';
+
+              this.selectFace(faceDir, cubie.userData.gridX, cubie.userData.gridY, cubie.userData.gridZ);
+              this.sound.playClick();
+              this.showToast(`Выбрана: ${this.selectedFace.name}`);
+            }
           }
         }
       });
     }
 
-    // --- Keyboard Arrow Keys Handler ---
-    handleArrowKeyPress(key, isShift) {
-      if (this.isAnimating) return;
+    executeArrowMove(data) {
+      this.moveHistory.push({
+        axis: data.axis,
+        layer: data.layer,
+        dir: data.dir,
+        moveStr: data.symbol || 'ARROW'
+      });
+      this.updateMoveCounter(this.moveHistory.length);
 
-      // 1. If on-screen directional arrows are currently visible (user is hovering or selected a face)
-      if (this.arrowMeshes && this.arrowMeshes.length > 0) {
-        let targetSymbol = '';
-        if (key === 'ArrowUp') targetSymbol = '⬆';
-        else if (key === 'ArrowDown') targetSymbol = '⬇';
-        else if (key === 'ArrowLeft') targetSymbol = '⬅';
-        else if (key === 'ArrowRight') targetSymbol = '➡';
-
-        const match = this.arrowMeshes.find((a) => a.userData.symbol === targetSymbol);
-        if (match) {
-          // Visual pulse effect on the arrow
-          match.scale.set(1.4, 1.4, 1.4);
-          setTimeout(() => {
-            if (match) match.scale.set(1, 1, 1);
-          }, 180);
-
-          const data = match.userData;
-          this.moveHistory.push({
-            axis: data.axis,
-            layer: data.layer,
-            dir: data.dir,
-            moveStr: data.label || 'KEY_ARROW'
-          });
-          this.updateMoveCounter(this.moveHistory.length);
-          if (!this.timerRunning && this.moveHistory.length === 1) {
-            this.startTimer();
-          }
-          this.showToast(`Клавиша: ${data.desc}`);
-          this.rotateSlice(data.axis, data.layer, data.dir, this.animationSpeed);
-          return;
-        }
+      if (!this.timerRunning && this.moveHistory.length === 1) {
+        this.startTimer();
       }
 
-      // 2. If no face is currently hovered, rotate default intuitive slices based on arrow keys:
-      const N = parseInt(this.currentSize, 10) || 3;
+      this.rotateSlice(data.axis, data.layer, data.dir, this.animationSpeed);
+      const tooltip = document.getElementById('arrowTooltip');
+      if (tooltip) tooltip.style.display = 'none';
+    }
 
-      if (key === 'ArrowUp') {
-        // Up Arrow: Right layer upwards (or Left layer with Shift)
-        const layer = isShift ? 0 : N - 1;
-        const dir = isShift ? 1 : -1;
-        const name = isShift ? "Левый слой L вверх" : "Правый слой R вверх";
-        this.moveHistory.push({ axis: 'x', layer, dir, moveStr: isShift ? 'L' : 'R' });
-        this.updateMoveCounter(this.moveHistory.length);
-        if (!this.timerRunning) this.startTimer();
-        this.showToast(`⬆️ ${name}`);
-        this.rotateSlice('x', layer, dir, this.animationSpeed);
-      } else if (key === 'ArrowDown') {
-        // Down Arrow: Right layer downwards (or Left layer with Shift)
-        const layer = isShift ? 0 : N - 1;
-        const dir = isShift ? -1 : 1;
-        const name = isShift ? "Левый слой L' вниз" : "Правый слой R' вниз";
-        this.moveHistory.push({ axis: 'x', layer, dir, moveStr: isShift ? "L'" : "R'" });
-        this.updateMoveCounter(this.moveHistory.length);
-        if (!this.timerRunning) this.startTimer();
-        this.showToast(`⬇️ ${name}`);
-        this.rotateSlice('x', layer, dir, this.animationSpeed);
-      } else if (key === 'ArrowLeft') {
-        // Left Arrow: Top Yellow layer leftwards (or Bottom White layer with Shift)
-        const layer = isShift ? 0 : N - 1;
-        const dir = -1;
-        const name = isShift ? "Нижний слой D' влево" : "Верхний слой U влево";
-        this.moveHistory.push({ axis: 'y', layer, dir, moveStr: isShift ? "D'" : "U" });
-        this.updateMoveCounter(this.moveHistory.length);
-        if (!this.timerRunning) this.startTimer();
-        this.showToast(`⬅️ ${name}`);
-        this.rotateSlice('y', layer, dir, this.animationSpeed);
-      } else if (key === 'ArrowRight') {
-        // Right Arrow: Top Yellow layer rightwards (or Bottom White layer with Shift)
-        const layer = isShift ? 0 : N - 1;
-        const dir = 1;
-        const name = isShift ? "Нижний слой D вправо" : "Верхний слой U' вправо";
-        this.moveHistory.push({ axis: 'y', layer, dir, moveStr: isShift ? "D" : "U'" });
-        this.updateMoveCounter(this.moveHistory.length);
-        if (!this.timerRunning) this.startTimer();
-        this.showToast(`➡️ ${name}`);
-        this.rotateSlice('y', layer, dir, this.animationSpeed);
+    // --- Keyboard Arrow Keys Handler: Rotates Selected Face in Key Direction! ---
+    handleArrowKeyPress(key) {
+      if (this.isAnimating) return;
+
+      // Make sure a face is selected
+      if (!this.selectedFace) {
+        this.selectFace('+z');
+      }
+
+      let targetSymbol = '';
+      if (key === 'ArrowUp') targetSymbol = '⬆';
+      else if (key === 'ArrowDown') targetSymbol = '⬇';
+      else if (key === 'ArrowLeft') targetSymbol = '⬅';
+      else if (key === 'ArrowRight') targetSymbol = '➡';
+
+      // Always execute for the SELECTED face's arrow!
+      const match = this.arrowMeshes.find((a) => a.userData.symbol === targetSymbol);
+      if (match) {
+        // Visual pulse effect on the arrow
+        match.scale.set(1.45, 1.45, 1.45);
+        setTimeout(() => {
+          if (match) match.scale.set(1, 1, 1);
+        }, 180);
+
+        const data = match.userData;
+        this.executeArrowMove(data);
+        this.showToast(`${targetSymbol} ${data.desc}`);
       }
     }
 
@@ -1586,7 +1547,7 @@
         // Keyboard Arrow Keys (⬆️ ⬇️ ⬅️ ➡️)
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
           e.preventDefault();
-          this.handleArrowKeyPress(e.key, e.shiftKey);
+          this.handleArrowKeyPress(e.key);
           return;
         }
 

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>GAN Cube 3D — Премиальный 3D Кубик Рубика с управлением стрелками</title>
-  <meta name="description" content="Премиальный 3D Кубик Рубика в стиле GAN Cube. Управление стрелками мыши и стрелками клавиатуры, желтый цвет сверху, белый снизу, полный обзор 360°, кнопки разобрать и собрать.">
+  <meta name="description" content="Премиальный 3D Кубик Рубика в стиле GAN Cube. Управление выбранной гранью стрелками на клавиатуре, желтый цвет сверху, белый снизу, полный обзор 360°, кнопки разобрать и собрать.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎲</text></svg>">
   <link rel="stylesheet" href="styles.css">
   <!-- Three.js and OrbitControls -->
@@ -47,15 +47,21 @@
 
     <!-- 360 Viewpoint Switcher Toolbar -->
     <nav class="view-toolbar" aria-label="360 обзор">
-      <span class="view-toolbar-label">🔄 Обзор 360°:</span>
-      <button class="cam-btn" data-cam="top">Сверху (Желтый)</button>
-      <button class="cam-btn" data-cam="front">Спереди (Зеленый)</button>
-      <button class="cam-btn" data-cam="right">Справа (Красный)</button>
-      <button class="cam-btn" data-cam="left">Слева (Оранжевый)</button>
-      <button class="cam-btn" data-cam="back">Сзади (Синий)</button>
-      <button class="cam-btn" data-cam="bottom">Снизу (Белый)</button>
-      <button class="cam-btn active" data-cam="iso">3D Угол</button>
+      <span class="view-toolbar-label">🔄 Выбор грани:</span>
+      <button class="cam-btn" data-cam="top">🟡 Сверху (Желтый)</button>
+      <button class="cam-btn active" data-cam="front">🟢 Спереди (Зеленый)</button>
+      <button class="cam-btn" data-cam="right">🔴 Справа (Красный)</button>
+      <button class="cam-btn" data-cam="left">🟠 Слева (Оранжевый)</button>
+      <button class="cam-btn" data-cam="back">🔵 Сзади (Синий)</button>
+      <button class="cam-btn" data-cam="bottom">⚪ Снизу (Белый)</button>
+      <button class="cam-btn" data-cam="iso">3D Угол</button>
     </nav>
+
+    <!-- Active Selected Face Status Banner -->
+    <div id="selectionBadge" class="selection-badge">
+      <span class="sel-dot"></span>
+      <span id="selectionText">Выбрана грань: Зеленая (Спереди) • Нажимайте ⬆️ ⬇️ ⬅️ ➡️ на клавиатуре</span>
+    </div>
 
     <!-- Main 3D Canvas Container -->
     <main id="canvas-container">
@@ -64,11 +70,6 @@
       <!-- Floating Direction Arrow Tooltip -->
       <div id="arrowTooltip" class="arrow-tooltip">
         <span id="arrowTooltipText">Повернуть грань</span>
-      </div>
-
-      <!-- Interactive Helper Banner -->
-      <div class="helper-banner">
-        ⌨ <b>Управление стрелками клавиатуры:</b> нажимайте <b>⬆️ ⬇️ ⬅️ ➡️</b> (или наведите на грань и кликайте стрелки). <b>Shift + стрелка</b> для нижнего/левого слоя!
       </div>
 
       <!-- Scramble Notation Overlay -->
@@ -193,22 +194,15 @@
         </div>
         <div class="modal-body">
           <div class="help-section">
-            <h4>⌨ Стрелки на клавиатуре</h4>
+            <h4>⌨ Управление стрелками на клавиатуре</h4>
+            <p>1. <strong>Кликните по любой детали/грани кубика</strong> (или выберите грань на панели вверху), чтобы сделать её активной. На ней появится золотая рамка и стрелки.</p>
+            <p>2. Нажимайте стрелки на клавиатуре — выбранная грань повернется <strong>ровно по направлению нажатой стрелки</strong>:</p>
             <div class="keys-grid">
-              <div><kbd>⬆️ Стрелка вверх</kbd> Правый слой вверх (R)</div>
-              <div><kbd>⬇️ Стрелка вниз</kbd> Правый слой вниз (R')</div>
-              <div><kbd>⬅️ Стрелка влево</kbd> Верхний слой влево (U)</div>
-              <div><kbd>➡️ Стрелка вправо</kbd> Верхний слой вправо (U')</div>
-              <div><kbd>Shift + ⬆️</kbd> Левый слой вверх (L)</div>
-              <div><kbd>Shift + ⬇️</kbd> Левый слой вниз (L')</div>
-              <div><kbd>Shift + ⬅️</kbd> Нижний слой влево (D')</div>
-              <div><kbd>Shift + ➡️</kbd> Нижний слой вправо (D)</div>
+              <div><kbd>⬆️ Стрелка вверх</kbd> Повернуть слой вверх</div>
+              <div><kbd>⬇️ Стрелка вниз</kbd> Повернуть слой вниз</div>
+              <div><kbd>⬅️ Стрелка влево</kbd> Повернуть слой влево</div>
+              <div><kbd>➡️ Стрелка вправо</kbd> Повернуть слой вправо</div>
             </div>
-            <p style="margin-top: 8px;"><em>Подсказка:</em> если навести курсор на любую грань, стрелки клавиатуры сразу управляют именно этой гранью!</p>
-          </div>
-          <div class="help-section">
-            <h4>🎯 Интерактивные экранные стрелки</h4>
-            <p>Наведите курсор на любую грань кубика — на ней тут же появятся <b>стрелки направления</b>. Кликните на стрелку мыши, чтобы повернуть грань.</p>
           </div>
           <div class="help-section">
             <h4>🎨 Цветовая схема GAN</h4>
@@ -223,7 +217,7 @@
           </div>
           <div class="help-section">
             <h4>🔄 Свободный обзор на 360°</h4>
-            <p>Зажмите левую кнопку мыши или палец в любом месте экрана (или на кубике вне стрелок) и свободно вращайте кубик во всех направлениях на 360 градусов.</p>
+            <p>Зажмите левую кнопку мыши или палец в любом месте экрана (или потяните кубик) и свободно вращайте его во всех направлениях на 360 градусов.</p>
           </div>
         </div>
         <div class="modal-footer">
