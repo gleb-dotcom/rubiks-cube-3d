@@ -887,9 +887,15 @@
       const offset = (N - 1) / 2;
 
       const movingCubies = this.cubies.filter((c) => {
-        if (axis === 'x') return c.userData.gridX === layer;
-        if (axis === 'y') return c.userData.gridY === layer;
-        if (axis === 'z') return c.userData.gridZ === layer;
+        if (Array.isArray(layer)) {
+          if (axis === 'x') return layer.includes(c.userData.gridX);
+          if (axis === 'y') return layer.includes(c.userData.gridY);
+          if (axis === 'z') return layer.includes(c.userData.gridZ);
+        } else {
+          if (axis === 'x') return c.userData.gridX === layer;
+          if (axis === 'y') return c.userData.gridY === layer;
+          if (axis === 'z') return c.userData.gridZ === layer;
+        }
         return false;
       });
 
@@ -1035,12 +1041,86 @@
 
       // Note: Yellow on Top (+Y), White on Bottom (-Y)
       switch (base) {
+        // Outer Face Moves
         case 'U': axis = 'y'; layer = N - 1; dir = -1; break; // Yellow
         case 'D': axis = 'y'; layer = 0;     dir = 1;  break; // White
         case 'R': axis = 'x'; layer = N - 1; dir = -1; break; // Red
         case 'L': axis = 'x'; layer = 0;     dir = 1;  break; // Orange
         case 'F': axis = 'z'; layer = N - 1; dir = -1; break; // Green
         case 'B': axis = 'z'; layer = 0;     dir = 1;  break; // Blue
+
+        // Wide Moves (Two layers: Outer + Inner) - Disassembles 4x4 and 5x5 cross and centers!
+        case 'Uw':
+        case 'u':
+          axis = 'y';
+          layer = [N - 2, N - 1];
+          dir = -1;
+          break;
+        case 'Dw':
+        case 'd':
+          axis = 'y';
+          layer = [0, 1];
+          dir = 1;
+          break;
+        case 'Rw':
+        case 'r':
+          axis = 'x';
+          layer = [N - 2, N - 1];
+          dir = -1;
+          break;
+        case 'Lw':
+        case 'l':
+          axis = 'x';
+          layer = [0, 1];
+          dir = 1;
+          break;
+        case 'Fw':
+        case 'f':
+          axis = 'z';
+          layer = [N - 2, N - 1];
+          dir = -1;
+          break;
+        case 'Bw':
+        case 'b':
+          axis = 'z';
+          layer = [0, 1];
+          dir = 1;
+          break;
+
+        // 3-layer Wide Moves for 5x5
+        case '3Uw':
+          axis = 'y';
+          layer = [N - 3, N - 2, N - 1];
+          dir = -1;
+          break;
+        case '3Rw':
+          axis = 'x';
+          layer = [N - 3, N - 2, N - 1];
+          dir = -1;
+          break;
+        case '3Fw':
+          axis = 'z';
+          layer = [N - 3, N - 2, N - 1];
+          dir = -1;
+          break;
+
+        // Middle Slices (M, E, S)
+        case 'M':
+          axis = 'x';
+          layer = Math.floor(N / 2);
+          dir = 1;
+          break;
+        case 'E':
+          axis = 'y';
+          layer = Math.floor(N / 2);
+          dir = 1;
+          break;
+        case 'S':
+          axis = 'z';
+          layer = Math.floor(N / 2);
+          dir = -1;
+          break;
+
         default: return;
       }
 
@@ -1076,8 +1156,25 @@
       this.resetTimer();
 
       const N = parseInt(this.currentSize, 10);
-      const moveCount = this.currentSize === 'pyraminx' ? 12 : (N === 2 ? 14 : (N === 3 ? 22 : (N === 4 ? 32 : 40)));
-      const baseMoves = ['U', 'D', 'L', 'R', 'F', 'B'];
+      let baseMoves = ['U', 'D', 'L', 'R', 'F', 'B'];
+      let moveCount = 24;
+
+      if (this.currentSize === 'pyraminx') {
+        moveCount = 14;
+      } else if (N === 2) {
+        moveCount = 14;
+      } else if (N === 3) {
+        moveCount = 24;
+      } else if (N === 4) {
+        // ON 4x4: INCLUDE WIDE TURNS SO CENTERS AND CROSS ARE THOROUGHLY DISASSEMBLED!
+        baseMoves = ['U', 'D', 'L', 'R', 'F', 'B', 'Uw', 'Dw', 'Lw', 'Rw', 'Fw', 'Bw'];
+        moveCount = 42;
+      } else if (N === 5) {
+        // ON 5x5: INCLUDE WIDE AND 3-WIDE TURNS TO SCRAMBLE ALL CENTERS AND CROSS PIECES!
+        baseMoves = ['U', 'D', 'L', 'R', 'F', 'B', 'Uw', 'Dw', 'Lw', 'Rw', 'Fw', 'Bw', '3Uw', '3Rw', '3Fw'];
+        moveCount = 56;
+      }
+
       const modifiers = ['', "'", '2'];
 
       const sequence = [];
