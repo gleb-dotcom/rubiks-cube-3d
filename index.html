@@ -83,7 +83,7 @@
     <div id="customColoringBanner" class="coloring-banner" style="display: none;">
       <div class="banner-left">
         <span class="banner-badge">🎨 Раскраска кубика</span>
-        <span class="banner-guide">Держите кубик: 🟡 <b>Желтый сверху</b>, ⚪ <b>Белый снизу</b>, 🟢 <b>Зеленый спереди</b></span>
+        <span class="banner-guide">Держите кубик: 🟡 <b>Желтый сверху</b>, ⚪ <b>Белый снизу</b>, 🟢 <b>Зеленый спереди</b>, 🟠 <b>Оранжевый справа</b></span>
       </div>
       <div class="banner-right">
         <span class="banner-progress" id="bannerProgress">Закрашено: <b id="paintedCount">6</b> / 54</span>
@@ -95,8 +95,8 @@
       <span class="view-toolbar-label">🔄 Выбор грани:</span>
       <button class="cam-btn" data-cam="top">🟡 Сверху (Желтый)</button>
       <button class="cam-btn active" data-cam="front">🟢 Спереди (Зеленый)</button>
-      <button class="cam-btn" data-cam="right">🔴 Справа (Красный)</button>
-      <button class="cam-btn" data-cam="left">🟠 Слева (Оранжевый)</button>
+      <button class="cam-btn" data-cam="right">🟠 Справа (Оранжевый)</button>
+      <button class="cam-btn" data-cam="left">🔴 Слева (Красный)</button>
       <button class="cam-btn" data-cam="back">🔵 Сзади (Синий)</button>
       <button class="cam-btn" data-cam="bottom">⚪ Снизу (Белый)</button>
       <button class="cam-btn" data-cam="iso">3D Угол</button>
@@ -199,9 +199,9 @@
           <button class="turn-btn" data-move="D'">D'</button>
           <button class="turn-btn" data-move="F" title="Зеленая грань">F (Зеленый)</button>
           <button class="turn-btn" data-move="F'">F'</button>
-          <button class="turn-btn" data-move="R" title="Красная грань">R (Красный)</button>
+          <button class="turn-btn" data-move="R" title="Оранжевая грань">R (Оранжевый)</button>
           <button class="turn-btn" data-move="R'">R'</button>
-          <button class="turn-btn" data-move="L" title="Оранжевая грань">L (Оранжевый)</button>
+          <button class="turn-btn" data-move="L" title="Красная грань">L (Красный)</button>
           <button class="turn-btn" data-move="L'">L'</button>
           <button class="turn-btn" data-move="B" title="Синяя грань">B (Синий)</button>
           <button class="turn-btn" data-move="B'">B'</button>
@@ -265,14 +265,14 @@
             <span class="swatch-name">Синий</span>
             <span class="swatch-counter" id="count-B">1/9</span>
           </button>
-          <button class="palette-swatch" data-color="R" style="--swatch-color: #ff2638;" title="Красный (Правая грань)">
-            <span class="swatch-circle" style="background: #ff2638;"></span>
-            <span class="swatch-name">Красный</span>
-            <span class="swatch-counter" id="count-R">1/9</span>
-          </button>
-          <button class="palette-swatch" data-color="L" style="--swatch-color: #ff7500;" title="Оранжевый (Левая грань)">
+          <button class="palette-swatch" data-color="R" style="--swatch-color: #ff7500;" title="Оранжевый (Правая грань)">
             <span class="swatch-circle" style="background: #ff7500;"></span>
             <span class="swatch-name">Оранжевый</span>
+            <span class="swatch-counter" id="count-R">1/9</span>
+          </button>
+          <button class="palette-swatch" data-color="L" style="--swatch-color: #ff2638;" title="Красный (Левая грань)">
+            <span class="swatch-circle" style="background: #ff2638;"></span>
+            <span class="swatch-name">Красный</span>
             <span class="swatch-counter" id="count-L">1/9</span>
           </button>
           <button class="palette-swatch eraser" data-color="eraser" title="Ластик — сбросить наклейку в черный">
@@ -384,8 +384,8 @@
               <li><strong>Белый:</strong> СНИЗУ</li>
               <li><strong>Зеленый:</strong> СПЕРЕДИ</li>
               <li><strong>Синий:</strong> СЗАДИ</li>
-              <li><strong>Красный:</strong> СПРАВА</li>
-              <li><strong>Оранжевый:</strong> СЛЕВА</li>
+              <li><strong>Оранжевый:</strong> СПРАВА</li>
+              <li><strong>Красный:</strong> СЛЕВА</li>
             </ul>
           </div>
           <div class="help-section">

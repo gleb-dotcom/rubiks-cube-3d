@@ -82,14 +82,14 @@
   }
 
   // --- Official GAN Speedcube Color Palette ---
-  // Requested: YELLOW ON TOP (+Y), WHITE ON BOTTOM (-Y)
+  // Requested: YELLOW ON TOP (+Y), WHITE ON BOTTOM (-Y), ORANGE ON RIGHT (+X), RED ON LEFT (-X)
   const GAN_COLORS = {
     U: 0xffe600, // Top: Vibrant GAN Lemon Yellow
     D: 0xffffff, // Bottom: Pure GAN White
     F: 0x00d053, // Front: GAN Electric Green
     B: 0x0066ff, // Back: GAN Royal Cobalt Blue
-    R: 0xff2638, // Right: GAN Flame Red
-    L: 0xff7500, // Left: GAN Vivid Orange
+    R: 0xff7500, // Right: GAN Vivid Orange
+    L: 0xff2638, // Left: GAN Flame Red
     body: 0x111318 // GAN Primary frosted black core
   };
 
@@ -442,12 +442,12 @@
           this.selectFace('-z');
           break;
         case 'right':
-          // Right Red face with Yellow clearly visible on top
+          // Right Orange face with Yellow clearly visible on top
           target.set(dist * 1.3, dist * 0.45, 0);
           this.selectFace('+x');
           break;
         case 'left':
-          // Left Orange face with Yellow clearly visible on top
+          // Left Red face with Yellow clearly visible on top
           target.set(-dist * 1.3, dist * 0.45, 0);
           this.selectFace('-x');
           break;
@@ -814,8 +814,8 @@
         case '-y': return 'Белая (Снизу)';
         case '+z': return 'Зеленая (Спереди)';
         case '-z': return 'Синяя (Сзади)';
-        case '+x': return 'Красная (Справа)';
-        case '-x': return 'Оранжевая (Слева)';
+        case '+x': return 'Оранжевая (Справа)';
+        case '-x': return 'Красная (Слева)';
         default: return 'Грань';
       }
     }
@@ -946,7 +946,7 @@
           desc: `Повернуть слой вправо (➡️)`
         });
       } else if (faceDir === '+x') {
-        // RIGHT FACE (Red)
+        // RIGHT FACE (Orange)
         arrowConfigs.push({
           pos: [faceDist, cubiePos.y + d, cubiePos.z],
           rot: [0, Math.PI / 2, 0], symbol: '⬆', label: 'Вверх',
@@ -972,7 +972,7 @@
           desc: `Повернуть слой вправо (➡️)`
         });
       } else if (faceDir === '-x') {
-        // LEFT FACE (Orange)
+        // LEFT FACE (Red)
         arrowConfigs.push({
           pos: [-faceDist, cubiePos.y + d, cubiePos.z],
           rot: [0, -Math.PI / 2, 0], symbol: '⬆', label: 'Вверх',
@@ -1253,8 +1253,8 @@
         // Outer Face Moves
         case 'U': axis = 'y'; layer = N - 1; dir = -1; break; // Yellow
         case 'D': axis = 'y'; layer = 0;     dir = 1;  break; // White
-        case 'R': axis = 'x'; layer = N - 1; dir = -1; break; // Red
-        case 'L': axis = 'x'; layer = 0;     dir = 1;  break; // Orange
+        case 'R': axis = 'x'; layer = N - 1; dir = -1; break; // Orange (Right)
+        case 'L': axis = 'x'; layer = 0;     dir = 1;  break; // Red (Left)
         case 'F': axis = 'z'; layer = N - 1; dir = -1; break; // Green
         case 'B': axis = 'z'; layer = 0;     dir = 1;  break; // Blue
 
@@ -2253,7 +2253,7 @@
     addCustomTilesToCubie(cubie, ix, iy, iz, size, tileGeo) {
       const tileOffset = size / 2 + 0.02;
 
-      // Yellow (+Y) Top, White (-Y) Bottom, Green (+Z) Front, Blue (-Z) Back, Red (+X) Right, Orange (-X) Left
+      // Yellow (+Y) Top, White (-Y) Bottom, Green (+Z) Front, Blue (-Z) Back, Orange (+X) Right, Red (-X) Left
       const faces = [
         { face: 'U', dir: '+y', cond: iy === 2, rot: [-Math.PI / 2, 0, 0], pos: [0, tileOffset, 0], isCenter: (ix === 1 && iz === 1) },
         { face: 'D', dir: '-y', cond: iy === 0, rot: [Math.PI / 2, 0, 0], pos: [0, -tileOffset, 0], isCenter: (ix === 1 && iz === 1) },
@@ -2734,13 +2734,13 @@
         "B'": 'Поверните заднюю (синюю) грань ВПРАВО (против часовой стрелки)',
         'B2': 'Поверните заднюю (синюю) грань на 180° (два раза)',
 
-        'R': 'Поверните правую (красную) грань ВВЕРХ (по часовой стрелке)',
-        "R'": 'Поверните правую (красную) грань ВНИЗ (против часовой стрелки)',
-        'R2': 'Поверните правую (красную) грань на 180° (два раза)',
+        'R': 'Поверните правую (оранжевую) грань ВВЕРХ (по часовой стрелке)',
+        "R'": 'Поверните правую (оранжевую) грань ВНИЗ (против часовой стрелки)',
+        'R2': 'Поверните правую (оранжевую) грань на 180° (два раза)',
 
-        'L': 'Поверните левую (оранжевую) грань ВНИЗ (по часовой стрелке)',
-        "L'": 'Поверните левую (оранжевую) грань ВВЕРХ (против часовой стрелки)',
-        'L2': 'Поверните левую (оранжевую) грань на 180° (два раза)'
+        'L': 'Поверните левую (красную) грань ВНИЗ (по часовой стрелке)',
+        "L'": 'Поверните левую (красную) грань ВВЕРХ (против часовой стрелки)',
+        'L2': 'Поверните левую (красную) грань на 180° (два раза)'
       };
       return descriptions[move] || `Поверните грань ${move}`;
     }
