@@ -1395,6 +1395,89 @@
       });
     }
 
+    // --- Keyboard Arrow Keys Handler ---
+    handleArrowKeyPress(key, isShift) {
+      if (this.isAnimating) return;
+
+      // 1. If on-screen directional arrows are currently visible (user is hovering or selected a face)
+      if (this.arrowMeshes && this.arrowMeshes.length > 0) {
+        let targetSymbol = '';
+        if (key === 'ArrowUp') targetSymbol = '⬆';
+        else if (key === 'ArrowDown') targetSymbol = '⬇';
+        else if (key === 'ArrowLeft') targetSymbol = '⬅';
+        else if (key === 'ArrowRight') targetSymbol = '➡';
+
+        const match = this.arrowMeshes.find((a) => a.userData.symbol === targetSymbol);
+        if (match) {
+          // Visual pulse effect on the arrow
+          match.scale.set(1.4, 1.4, 1.4);
+          setTimeout(() => {
+            if (match) match.scale.set(1, 1, 1);
+          }, 180);
+
+          const data = match.userData;
+          this.moveHistory.push({
+            axis: data.axis,
+            layer: data.layer,
+            dir: data.dir,
+            moveStr: data.label || 'KEY_ARROW'
+          });
+          this.updateMoveCounter(this.moveHistory.length);
+          if (!this.timerRunning && this.moveHistory.length === 1) {
+            this.startTimer();
+          }
+          this.showToast(`Клавиша: ${data.desc}`);
+          this.rotateSlice(data.axis, data.layer, data.dir, this.animationSpeed);
+          return;
+        }
+      }
+
+      // 2. If no face is currently hovered, rotate default intuitive slices based on arrow keys:
+      const N = parseInt(this.currentSize, 10) || 3;
+
+      if (key === 'ArrowUp') {
+        // Up Arrow: Right layer upwards (or Left layer with Shift)
+        const layer = isShift ? 0 : N - 1;
+        const dir = isShift ? 1 : -1;
+        const name = isShift ? "Левый слой L вверх" : "Правый слой R вверх";
+        this.moveHistory.push({ axis: 'x', layer, dir, moveStr: isShift ? 'L' : 'R' });
+        this.updateMoveCounter(this.moveHistory.length);
+        if (!this.timerRunning) this.startTimer();
+        this.showToast(`⬆️ ${name}`);
+        this.rotateSlice('x', layer, dir, this.animationSpeed);
+      } else if (key === 'ArrowDown') {
+        // Down Arrow: Right layer downwards (or Left layer with Shift)
+        const layer = isShift ? 0 : N - 1;
+        const dir = isShift ? -1 : 1;
+        const name = isShift ? "Левый слой L' вниз" : "Правый слой R' вниз";
+        this.moveHistory.push({ axis: 'x', layer, dir, moveStr: isShift ? "L'" : "R'" });
+        this.updateMoveCounter(this.moveHistory.length);
+        if (!this.timerRunning) this.startTimer();
+        this.showToast(`⬇️ ${name}`);
+        this.rotateSlice('x', layer, dir, this.animationSpeed);
+      } else if (key === 'ArrowLeft') {
+        // Left Arrow: Top Yellow layer leftwards (or Bottom White layer with Shift)
+        const layer = isShift ? 0 : N - 1;
+        const dir = -1;
+        const name = isShift ? "Нижний слой D' влево" : "Верхний слой U влево";
+        this.moveHistory.push({ axis: 'y', layer, dir, moveStr: isShift ? "D'" : "U" });
+        this.updateMoveCounter(this.moveHistory.length);
+        if (!this.timerRunning) this.startTimer();
+        this.showToast(`⬅️ ${name}`);
+        this.rotateSlice('y', layer, dir, this.animationSpeed);
+      } else if (key === 'ArrowRight') {
+        // Right Arrow: Top Yellow layer rightwards (or Bottom White layer with Shift)
+        const layer = isShift ? 0 : N - 1;
+        const dir = 1;
+        const name = isShift ? "Нижний слой D вправо" : "Верхний слой U' вправо";
+        this.moveHistory.push({ axis: 'y', layer, dir, moveStr: isShift ? "D" : "U'" });
+        this.updateMoveCounter(this.moveHistory.length);
+        if (!this.timerRunning) this.startTimer();
+        this.showToast(`➡️ ${name}`);
+        this.rotateSlice('y', layer, dir, this.animationSpeed);
+      }
+    }
+
     // --- UI Bindings ---
     bindUI() {
       this.setupInteraction();
@@ -1499,6 +1582,13 @@
       // Keyboard Controls
       window.addEventListener('keydown', (e) => {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+        // Keyboard Arrow Keys (⬆️ ⬇️ ⬅️ ➡️)
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+          e.preventDefault();
+          this.handleArrowKeyPress(e.key, e.shiftKey);
+          return;
+        }
 
         if (e.code === 'Space') {
           e.preventDefault();
