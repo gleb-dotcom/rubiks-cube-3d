@@ -1,14 +1,15 @@
 /**
  * -------------------------------------------------------------
- * КУБИК РУБИКА 3D — Полный обзор 360° и интерактивные стрелки
- * Поддержка 2x2, 3x3, 4x4, 5x5 и Пирамидки
+ * GAN 356 CUBE 3D — Премиальный движок со стрелочным управлением
+ * Желтый цвет СВЕРХУ, Белый цвет СНИЗУ
+ * Интерактивные стрелки направления на каждой грани
  * -------------------------------------------------------------
  */
 
 (function () {
   'use strict';
 
-  // --- Web Audio API Sound Synthesizer ---
+  // --- Sound Synthesizer (GAN Magnetic Snap) ---
   class SoundFX {
     constructor() {
       this.ctx = null;
@@ -33,21 +34,22 @@
       if (!this.ctx) return;
 
       const now = this.ctx.currentTime;
+      // Snappy magnetic click
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
 
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(150, now);
-      osc.frequency.exponentialRampToValueAtTime(35, now + 0.05);
+      osc.frequency.setValueAtTime(200, now);
+      osc.frequency.exponentialRampToValueAtTime(45, now + 0.04);
 
-      gain.gain.setValueAtTime(0.3, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
 
       osc.connect(gain);
       gain.connect(this.ctx.destination);
 
       osc.start(now);
-      osc.stop(now + 0.06);
+      osc.stop(now + 0.05);
     }
 
     playVictory() {
@@ -55,81 +57,95 @@
       this.init();
       if (!this.ctx) return;
 
-      const notes = [523.25, 659.25, 783.99, 1046.5];
+      const notes = [587.33, 739.99, 880.00, 1174.66]; // D5, F#5, A5, D6
       const start = this.ctx.currentTime;
 
       notes.forEach((freq, idx) => {
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        const noteStart = start + idx * 0.12;
+        const noteStart = start + idx * 0.11;
 
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, noteStart);
 
         gain.gain.setValueAtTime(0, noteStart);
-        gain.gain.linearRampToValueAtTime(0.25, noteStart + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, noteStart + 0.35);
+        gain.gain.linearRampToValueAtTime(0.28, noteStart + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, noteStart + 0.32);
 
         osc.connect(gain);
         gain.connect(this.ctx.destination);
 
         osc.start(noteStart);
-        osc.stop(noteStart + 0.36);
+        osc.stop(noteStart + 0.35);
       });
     }
   }
 
-  // --- Themes ---
-  const THEMES = {
-    classic: {
-      U: 0xffffff, // White
-      D: 0xffd500, // Yellow
-      L: 0xff5800, // Orange
-      R: 0xb71234, // Red
-      F: 0x009b48, // Green
-      B: 0x0046ad, // Blue
-      body: 0x111116,
-      bg: 0x0a0e17
-    },
-    neon: {
-      U: 0xffffff,
-      D: 0xfef08a,
-      L: 0xff007f,
-      R: 0x00f0ff,
-      F: 0x00ff66,
-      B: 0x7928ca,
-      body: 0x050510,
-      bg: 0x05050f
-    },
-    pastel: {
-      U: 0xf8fafc,
-      D: 0xfde047,
-      L: 0xfba94c,
-      R: 0xf87171,
-      F: 0x86efac,
-      B: 0x93c5fd,
-      body: 0x1f1d2e,
-      bg: 0x1e1b2e
-    }
+  // --- Official GAN Speedcube Color Palette ---
+  // Requested: YELLOW ON TOP (+Y), WHITE ON BOTTOM (-Y)
+  const GAN_COLORS = {
+    U: 0xffe600, // Top: Vibrant GAN Lemon Yellow
+    D: 0xffffff, // Bottom: Pure GAN White
+    F: 0x00d053, // Front: GAN Electric Green
+    B: 0x0066ff, // Back: GAN Royal Cobalt Blue
+    R: 0xff2638, // Right: GAN Flame Red
+    L: 0xff7500, // Left: GAN Vivid Orange
+    body: 0x111318 // GAN Primary frosted black core
   };
 
-  // --- Procedural 3D Arrow Texture Generator ---
-  function createArrowTexture(symbol, label, color = '#38bdf8', bg = 'rgba(15, 23, 42, 0.92)') {
+  // --- GAN Center Logo Canvas Texture ---
+  function createGanLogoTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+
+    // Yellow background
+    ctx.fillStyle = '#FFE600';
+    ctx.fillRect(0, 0, 256, 256);
+
+    // Subtle carbon/matte pattern
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.03)';
+    for (let i = 0; i < 256; i += 8) {
+      ctx.fillRect(i, 0, 4, 256);
+    }
+
+    // Stylized GAN emblem
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '900 68px "Arial Black", -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('GAN', 128, 108);
+
+    // Blue accent line & edition text
+    ctx.fillStyle = '#0066FF';
+    ctx.fillRect(58, 142, 140, 4);
+
+    ctx.font = 'bold 20px -apple-system, sans-serif';
+    ctx.fillText('356 M PRO', 128, 168);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    return texture;
+  }
+
+  // --- Procedural Glowing Direction Arrow Texture ---
+  function createDirectionArrowTexture(symbol, label, color = '#ffe600') {
     const canvas = document.createElement('canvas');
     canvas.width = 128;
     canvas.height = 128;
     const ctx = canvas.getContext('2d');
 
-    // Glowing circle badge
     ctx.clearRect(0, 0, 128, 128);
 
+    // Glowing badge circle
     ctx.save();
     ctx.shadowColor = color;
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = 14;
 
     ctx.beginPath();
-    ctx.arc(64, 64, 52, 0, Math.PI * 2);
-    ctx.fillStyle = bg;
+    ctx.arc(64, 64, 50, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(11, 17, 30, 0.94)';
     ctx.fill();
 
     ctx.lineWidth = 4;
@@ -137,18 +153,19 @@
     ctx.stroke();
     ctx.restore();
 
-    // Draw Symbol
+    // Arrow symbol
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 50px -apple-system, sans-serif';
+    ctx.font = 'bold 52px -apple-system, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(symbol, 64, 58);
 
-    // Draw Sub-label
+    // Sub-label
     if (label) {
       ctx.fillStyle = color;
-      ctx.font = 'bold 16px monospace';
-      ctx.fillText(label, 64, 96);
+      ctx.font = 'bold 15px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, 64, 98);
     }
 
     const texture = new THREE.CanvasTexture(canvas);
@@ -156,21 +173,50 @@
     return texture;
   }
 
+  // --- Beveled Rounded Tile Geometry ---
+  function createRoundedTileGeo(size, radius, thickness) {
+    const shape = new THREE.Shape();
+    const s = size / 2;
+    const r = radius;
+
+    shape.moveTo(-s + r, -s);
+    shape.lineTo(s - r, -s);
+    shape.quadraticCurveTo(s, -s, s, -s + r);
+    shape.lineTo(s, s - r);
+    shape.quadraticCurveTo(s, s, s - r, s);
+    shape.lineTo(-s + r, s);
+    shape.quadraticCurveTo(-s, s, -s, s - r);
+    shape.lineTo(-s, -s + r);
+    shape.quadraticCurveTo(-s, -s, -s + r, -s);
+
+    const extrudeSettings = {
+      depth: thickness,
+      bevelEnabled: true,
+      bevelSegments: 2,
+      steps: 1,
+      bevelSize: 0.02,
+      bevelThickness: 0.02
+    };
+
+    const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+    geo.center();
+    return geo;
+  }
+
   // --- Main Rubik Engine & App State ---
   class RubiksCubeApp {
     constructor() {
       this.sound = new SoundFX();
-      this.currentThemeName = 'classic';
-      this.theme = THEMES[this.currentThemeName];
+      this.colors = GAN_COLORS;
+      this.ganLogoTex = createGanLogoTexture();
 
-      this.currentSize = 3; // 2, 3, 4, 5, or 'pyraminx'
+      this.currentSize = 3;
       this.cubies = [];
       this.isAnimating = false;
-      this.animationSpeed = 200; // ms per turn
+      this.animationSpeed = 160; // GAN fast snappy turn
       this.moveHistory = [];
       this.isScrambling = false;
       this.isAutoSolving = false;
-      this.showArrowsAlways = true;
 
       // Timer state
       this.timerRunning = false;
@@ -183,12 +229,14 @@
       this.targetCameraPos = null;
       this.isTransitioningCamera = false;
 
-      // Arrow meshes
+      // Dynamic On-Hover Arrows System
       this.arrowMeshes = [];
       this.activeHoveredArrow = null;
       this.highlightedCubies = [];
+      this.currentHoveredFace = null;
+      this.currentHoveredGrid = null;
 
-      // Pointer tracking to differentiate click vs 360 drag
+      // Pointer drag tracking for 360 rotation
       this.pointerDownPos = new THREE.Vector2();
       this.isPointerDown = false;
       this.dragThresholdPassed = false;
@@ -199,16 +247,15 @@
       this.animate();
     }
 
-    // --- Three.js Initialization ---
+    // --- Three.js Scene Setup ---
     initThree() {
       const container = document.getElementById('canvas-container');
       const canvas = document.getElementById('cubeCanvas');
 
       this.scene = new THREE.Scene();
-      this.scene.background = new THREE.Color(this.theme.bg);
 
       this.camera = new THREE.PerspectiveCamera(
-        42,
+        40,
         container.clientWidth / container.clientHeight,
         0.1,
         1000
@@ -218,55 +265,83 @@
       this.renderer = new THREE.WebGLRenderer({
         canvas: canvas,
         antialias: true,
+        alpha: true,
         powerPreference: 'high-performance'
       });
       this.renderer.setSize(container.clientWidth, container.clientHeight);
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       this.renderer.shadowMap.enabled = true;
+      this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      this.renderer.toneMappingExposure = 1.05;
 
-      // OrbitControls configured for UNRESTRICTED 360-degree rotation!
+      // OrbitControls for unrestricted 360-degree rotation
       this.controls = new THREE.OrbitControls(this.camera, canvas);
       this.controls.enableDamping = true;
-      this.controls.dampingFactor = 0.06;
+      this.controls.dampingFactor = 0.07;
       this.controls.rotateSpeed = 0.9;
       this.controls.enablePan = false;
       this.controls.minDistance = 3.5;
       this.controls.maxDistance = 30;
-      // Allow full vertical 360 orbit without clamp
       this.controls.minPolarAngle = 0.01;
       this.controls.maxPolarAngle = Math.PI - 0.01;
 
-      // Lights
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.78);
+      // Luxury Studio Lighting Setup
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.82);
       this.scene.add(ambientLight);
 
-      const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.65);
-      dirLight1.position.set(15, 25, 20);
-      this.scene.add(dirLight1);
+      // Key light from top right
+      const keyLight = new THREE.DirectionalLight(0xffffff, 0.85);
+      keyLight.position.set(16, 26, 20);
+      this.scene.add(keyLight);
 
-      const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
-      dirLight2.position.set(-18, -15, -15);
-      this.scene.add(dirLight2);
+      // Fill light from bottom left
+      const fillLight = new THREE.DirectionalLight(0xfff5e6, 0.45);
+      fillLight.position.set(-20, -12, -15);
+      this.scene.add(fillLight);
 
-      const dirLight3 = new THREE.DirectionalLight(0xffffff, 0.3);
-      dirLight3.position.set(0, -25, 0);
-      this.scene.add(dirLight3);
+      // Rim light for edge gloss
+      const rimLight = new THREE.DirectionalLight(0x38bdf8, 0.4);
+      rimLight.position.set(0, -20, 20);
+      this.scene.add(rimLight);
 
-      // Cube parent group & pivot group for animated rotations
+      // Floor Shadow Plane
+      const shadowGeo = new THREE.PlaneGeometry(12, 12);
+      const shadowCanvas = document.createElement('canvas');
+      shadowCanvas.width = 128;
+      shadowCanvas.height = 128;
+      const sCtx = shadowCanvas.getContext('2d');
+      const grad = sCtx.createRadialGradient(64, 64, 10, 64, 64, 64);
+      grad.addColorStop(0, 'rgba(0, 0, 0, 0.45)');
+      grad.addColorStop(0.5, 'rgba(0, 0, 0, 0.2)');
+      grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      sCtx.fillStyle = grad;
+      sCtx.fillRect(0, 0, 128, 128);
+
+      const shadowTex = new THREE.CanvasTexture(shadowCanvas);
+      const shadowMat = new THREE.MeshBasicMaterial({
+        map: shadowTex,
+        transparent: true,
+        depthWrite: false
+      });
+      this.floorShadow = new THREE.Mesh(shadowGeo, shadowMat);
+      this.floorShadow.rotation.x = -Math.PI / 2;
+      this.floorShadow.position.y = -3.2;
+      this.scene.add(this.floorShadow);
+
+      // Groups
       this.cubeGroup = new THREE.Group();
       this.scene.add(this.cubeGroup);
 
       this.pivotGroup = new THREE.Group();
       this.scene.add(this.pivotGroup);
 
-      // Separate group for 3D interactive arrows
+      // Dynamic arrows group
       this.arrowGroup = new THREE.Group();
       this.scene.add(this.arrowGroup);
 
       this.raycaster = new THREE.Raycaster();
       this.mouse = new THREE.Vector2();
 
-      // Window resize handler
       window.addEventListener('resize', () => this.onWindowResize());
     }
 
@@ -280,18 +355,17 @@
       }
     }
 
-    // Smoothly animate camera to a specific 360 view angle
     setCameraView(viewName) {
       const dist = this.currentSize === 'pyraminx' ? 9.5 : (this.currentSize * 2.3 + 3.2);
       let target = new THREE.Vector3();
 
       switch (viewName) {
-        case 'front': target.set(0, 0, dist * 1.4); break;
-        case 'back': target.set(0, 0, -dist * 1.4); break;
-        case 'top': target.set(0, dist * 1.4, 0.001); break;
-        case 'bottom': target.set(0, -dist * 1.4, 0.001); break;
-        case 'left': target.set(-dist * 1.4, 0, 0); break;
-        case 'right': target.set(dist * 1.4, 0, 0); break;
+        case 'top': target.set(0, dist * 1.4, 0.001); break; // Yellow
+        case 'bottom': target.set(0, -dist * 1.4, 0.001); break; // White
+        case 'front': target.set(0, 0, dist * 1.4); break; // Green
+        case 'back': target.set(0, 0, -dist * 1.4); break; // Blue
+        case 'right': target.set(dist * 1.4, 0, 0); break; // Red
+        case 'left': target.set(-dist * 1.4, 0, 0); break; // Orange
         case 'iso':
         default:
           target.set(dist * 0.9, dist * 0.8, dist * 1.2);
@@ -318,8 +392,8 @@
       this.isScrambling = false;
       this.updateMoveCounter(0);
       this.hideScrambleDisplay();
+      this.clearArrows();
 
-      // Clear existing puzzle meshes
       while (this.cubeGroup.children.length > 0) {
         const obj = this.cubeGroup.children[0];
         this.cubeGroup.remove(obj);
@@ -328,7 +402,7 @@
       this.cubies = [];
 
       document.getElementById('cubeSizeBadge').innerText =
-        size === 'pyraminx' ? 'Пирамидка' : `${size}x${size}x${size}`;
+        size === 'pyraminx' ? 'GAN Pyraminx' : `GAN ${size}x${size}x${size}`;
 
       if (size === 'pyraminx') {
         this.buildPyraminx();
@@ -336,23 +410,28 @@
         this.buildNxNCube(parseInt(size, 10));
       }
 
-      this.createEdgeArrows();
+      // Adjust shadow position for size
+      const N = parseInt(size, 10) || 3;
+      this.floorShadow.position.y = -(N * 0.6 + 1.2);
+
       this.setDefaultCamera();
     }
 
-    // --- Build N x N x N Cube ---
+    // --- Build N x N x N Cube (GAN Beveled Tile Edition) ---
     buildNxNCube(N) {
       const cubieSize = 0.96;
       const spacing = 1.0;
       const offset = (N - 1) / 2;
 
+      // GAN frosted black plastic body
       const bodyMat = new THREE.MeshStandardMaterial({
-        color: this.theme.body,
-        roughness: 0.35,
-        metalness: 0.1
+        color: this.colors.body,
+        roughness: 0.28,
+        metalness: 0.12
       });
 
       const boxGeo = new THREE.BoxGeometry(cubieSize, cubieSize, cubieSize);
+      const tileGeo = createRoundedTileGeo(0.88, 0.08, 0.03);
 
       for (let ix = 0; ix < N; ix++) {
         for (let iy = 0; iy < N; iy++) {
@@ -371,7 +450,8 @@
             const cubieMesh = new THREE.Mesh(boxGeo, bodyMat.clone());
             cubieMesh.position.set(x, y, z);
 
-            this.addStickersToCubie(cubieMesh, ix, iy, iz, N, cubieSize);
+            // Add beveled rounded tiles with GAN colors
+            this.addTilesToCubie(cubieMesh, ix, iy, iz, N, cubieSize, tileGeo);
 
             cubieMesh.userData = {
               gridX: ix,
@@ -390,47 +470,54 @@
       }
     }
 
-    addStickersToCubie(cubie, ix, iy, iz, N, size) {
-      const stickerThickness = 0.02;
-      const stickerScale = 0.88;
-      const stickerOffset = size / 2 + stickerThickness / 2;
+    addTilesToCubie(cubie, ix, iy, iz, N, size, tileGeo) {
+      const tileOffset = size / 2 + 0.02;
 
+      // YELLOW IS TOP (+Y), WHITE IS BOTTOM (-Y)
       const faces = [
-        { dir: '+x', cond: ix === N - 1, color: this.theme.R, rot: [0, Math.PI / 2, 0], pos: [stickerOffset, 0, 0] },
-        { dir: '-x', cond: ix === 0,     color: this.theme.L, rot: [0, -Math.PI / 2, 0], pos: [-stickerOffset, 0, 0] },
-        { dir: '+y', cond: iy === N - 1, color: this.theme.U, rot: [-Math.PI / 2, 0, 0], pos: [0, stickerOffset, 0] },
-        { dir: '-y', cond: iy === 0,     color: this.theme.D, rot: [Math.PI / 2, 0, 0], pos: [0, -stickerOffset, 0] },
-        { dir: '+z', cond: iz === N - 1, color: this.theme.F, rot: [0, 0, 0], pos: [0, 0, stickerOffset] },
-        { dir: '-z', cond: iz === 0,     color: this.theme.B, rot: [0, Math.PI, 0], pos: [0, 0, -stickerOffset] }
+        { dir: '+y', cond: iy === N - 1, color: this.colors.U, isCenter: (ix === 1 && iz === 1 && N === 3), rot: [-Math.PI / 2, 0, 0], pos: [0, tileOffset, 0] },
+        { dir: '-y', cond: iy === 0,     color: this.colors.D, isCenter: false, rot: [Math.PI / 2, 0, 0], pos: [0, -tileOffset, 0] },
+        { dir: '+z', cond: iz === N - 1, color: this.colors.F, isCenter: false, rot: [0, 0, 0], pos: [0, 0, tileOffset] },
+        { dir: '-z', cond: iz === 0,     color: this.colors.B, isCenter: false, rot: [0, Math.PI, 0], pos: [0, 0, -tileOffset] },
+        { dir: '+x', cond: ix === N - 1, color: this.colors.R, isCenter: false, rot: [0, Math.PI / 2, 0], pos: [tileOffset, 0, 0] },
+        { dir: '-x', cond: ix === 0,     color: this.colors.L, isCenter: false, rot: [0, -Math.PI / 2, 0], pos: [-tileOffset, 0, 0] }
       ];
-
-      const stickerGeo = new THREE.PlaneGeometry(size * stickerScale, size * stickerScale);
 
       faces.forEach((f) => {
         if (f.cond) {
-          const mat = new THREE.MeshStandardMaterial({
-            color: f.color,
-            roughness: 0.25,
-            metalness: 0.05,
-            side: THREE.DoubleSide
-          });
-          const sticker = new THREE.Mesh(stickerGeo, mat);
-          sticker.position.set(...f.pos);
-          sticker.rotation.set(...f.rot);
-          sticker.userData = { isSticker: true, faceDir: f.dir, initColor: f.color };
-          cubie.add(sticker);
+          let mat;
+          if (f.isCenter && f.dir === '+y') {
+            // Apply GAN logo on top yellow center tile!
+            mat = new THREE.MeshStandardMaterial({
+              map: this.ganLogoTex,
+              roughness: 0.22,
+              metalness: 0.08
+            });
+          } else {
+            mat = new THREE.MeshStandardMaterial({
+              color: f.color,
+              roughness: 0.22,
+              metalness: 0.08
+            });
+          }
+
+          const tile = new THREE.Mesh(tileGeo, mat);
+          tile.position.set(...f.pos);
+          tile.rotation.set(...f.rot);
+          tile.userData = { isSticker: true, faceDir: f.dir, initColor: f.color };
+          cubie.add(tile);
         }
       });
     }
 
     // --- Build Pyraminx ---
     buildPyraminx() {
-      const colors = [this.theme.F, this.theme.R, this.theme.B, this.theme.D];
+      const colors = [this.colors.U, this.colors.F, this.colors.R, this.colors.B];
       const scale = 3.2;
 
       const tetraGeo = new THREE.TetrahedronGeometry(scale, 0);
       const tetraMat = new THREE.MeshStandardMaterial({
-        color: this.theme.body,
+        color: this.colors.body,
         roughness: 0.35
       });
 
@@ -450,7 +537,8 @@
 
         const triMat = new THREE.MeshStandardMaterial({
           color: colors[i],
-          roughness: 0.25,
+          roughness: 0.22,
+          metalness: 0.08,
           side: THREE.DoubleSide
         });
         const faceMesh = new THREE.Mesh(triGeo, triMat);
@@ -462,9 +550,8 @@
       this.cubies.push(baseTetra);
     }
 
-    // --- Interactive 3D Rotation Arrows on Edges and Faces ---
-    createEdgeArrows() {
-      // Clear old arrows
+    // --- Dynamic Arrow Controls on Hover ---
+    clearArrows() {
       while (this.arrowGroup.children.length > 0) {
         const a = this.arrowGroup.children[0];
         this.arrowGroup.remove(a);
@@ -472,207 +559,274 @@
         if (a.geometry) a.geometry.dispose();
       }
       this.arrowMeshes = [];
+      this.currentHoveredFace = null;
+      this.currentHoveredGrid = null;
+    }
 
-      if (this.currentSize === 'pyraminx') {
-        this.createPyraminxArrows();
-        return;
+    // Displays directional arrows directly over the hovered face and cubie
+    updateDirectionArrowsOnFace(faceDir, cubie) {
+      if (this.currentHoveredFace === faceDir &&
+          this.currentHoveredGrid &&
+          this.currentHoveredGrid.x === cubie.userData.gridX &&
+          this.currentHoveredGrid.y === cubie.userData.gridY &&
+          this.currentHoveredGrid.z === cubie.userData.gridZ) {
+        return; // already showing arrows for this exact face/cubie
       }
 
-      const N = parseInt(this.currentSize, 10);
-      const spacing = 1.0;
-      const offset = (N - 1) / 2;
-      const faceDist = offset + 0.58; // slightly hovering outside the cube face
-      const edgeDist = offset + 0.65;
-      const arrowSize = 0.58;
-      const arrowPlaneGeo = new THREE.PlaneGeometry(arrowSize, arrowSize);
-
-      // Definition of arrows for each of the 6 outer faces
-      // Each arrow has: position, normal rotation, axis, layer, direction, label, symbol, description
-      const facesConfig = [
-        // Front Face (+Z)
-        {
-          name: 'Front (F)',
-          center: [0, 0, faceDist],
-          rot: [0, 0, 0],
-          cw: { axis: 'z', layer: N - 1, dir: -1, move: 'F', desc: 'Грань F по часовой ↻' },
-          ccw: { axis: 'z', layer: N - 1, dir: 1, move: "F'", desc: 'Грань F против часовой ↺' },
-          edges: [
-            { pos: [edgeDist, 0, faceDist], symbol: '⬇', axis: 'x', layer: N - 1, dir: 1, move: "R'", desc: 'Правый слой R вниз' },
-            { pos: [edgeDist, 0, faceDist - 0.5], symbol: '⬆', axis: 'x', layer: N - 1, dir: -1, move: 'R', desc: 'Правый слой R вверх' },
-            { pos: [-edgeDist, 0, faceDist], symbol: '⬆', axis: 'x', layer: 0, dir: 1, move: 'L', desc: 'Левый слой L вверх' },
-            { pos: [0, edgeDist, faceDist], symbol: '⬅', axis: 'y', layer: N - 1, dir: -1, move: 'U', desc: 'Верхний слой U влево' },
-            { pos: [0, -edgeDist, faceDist], symbol: '➡', axis: 'y', layer: 0, dir: 1, move: 'D', desc: 'Нижний слой D вправо' }
-          ]
-        },
-        // Right Face (+X)
-        {
-          name: 'Right (R)',
-          center: [faceDist, 0, 0],
-          rot: [0, Math.PI / 2, 0],
-          cw: { axis: 'x', layer: N - 1, dir: -1, move: 'R', desc: 'Грань R по часовой ↻' },
-          ccw: { axis: 'x', layer: N - 1, dir: 1, move: "R'", desc: 'Грань R против часовой ↺' },
-          edges: [
-            { pos: [faceDist, edgeDist, 0], symbol: '⬅', axis: 'y', layer: N - 1, dir: -1, move: 'U', desc: 'Верхний слой U' },
-            { pos: [faceDist, -edgeDist, 0], symbol: '➡', axis: 'y', layer: 0, dir: 1, move: 'D', desc: 'Нижний слой D' },
-            { pos: [faceDist, 0, edgeDist], symbol: '⬇', axis: 'z', layer: N - 1, dir: -1, move: 'F', desc: 'Передний слой F' },
-            { pos: [faceDist, 0, -edgeDist], symbol: '⬆', axis: 'z', layer: 0, dir: 1, move: 'B', desc: 'Задний слой B' }
-          ]
-        },
-        // Up Face (+Y)
-        {
-          name: 'Up (U)',
-          center: [0, faceDist, 0],
-          rot: [-Math.PI / 2, 0, 0],
-          cw: { axis: 'y', layer: N - 1, dir: -1, move: 'U', desc: 'Грань U по часовой ↻' },
-          ccw: { axis: 'y', layer: N - 1, dir: 1, move: "U'", desc: 'Грань U против часовой ↺' },
-          edges: [
-            { pos: [edgeDist, faceDist, 0], symbol: '⬇', axis: 'x', layer: N - 1, dir: 1, move: "R'", desc: 'Слой R назад' },
-            { pos: [-edgeDist, faceDist, 0], symbol: '⬆', axis: 'x', layer: 0, dir: 1, move: 'L', desc: 'Слой L вперед' },
-            { pos: [0, faceDist, edgeDist], symbol: '➡', axis: 'z', layer: N - 1, dir: -1, move: 'F', desc: 'Слой F' },
-            { pos: [0, faceDist, -edgeDist], symbol: '⬅', axis: 'z', layer: 0, dir: 1, move: 'B', desc: 'Слой B' }
-          ]
-        },
-        // Down Face (-Y)
-        {
-          name: 'Down (D)',
-          center: [0, -faceDist, 0],
-          rot: [Math.PI / 2, 0, 0],
-          cw: { axis: 'y', layer: 0, dir: 1, move: 'D', desc: 'Грань D по часовой ↻' },
-          ccw: { axis: 'y', layer: 0, dir: -1, move: "D'", desc: 'Грань D против часовой ↺' },
-          edges: [
-            { pos: [edgeDist, -faceDist, 0], symbol: '➡', axis: 'x', layer: N - 1, dir: -1, move: 'R', desc: 'Слой R' },
-            { pos: [-edgeDist, -faceDist, 0], symbol: '⬅', axis: 'x', layer: 0, dir: -1, move: "L'", desc: 'Слой L' }
-          ]
-        },
-        // Left Face (-X)
-        {
-          name: 'Left (L)',
-          center: [-faceDist, 0, 0],
-          rot: [0, -Math.PI / 2, 0],
-          cw: { axis: 'x', layer: 0, dir: 1, move: 'L', desc: 'Грань L по часовой ↻' },
-          ccw: { axis: 'x', layer: 0, dir: -1, move: "L'", desc: 'Грань L против часовой ↺' },
-          edges: [
-            { pos: [-faceDist, edgeDist, 0], symbol: '⬅', axis: 'y', layer: N - 1, dir: -1, move: 'U', desc: 'Верхний слой U' },
-            { pos: [-faceDist, -edgeDist, 0], symbol: '➡', axis: 'y', layer: 0, dir: 1, move: 'D', desc: 'Нижний слой D' }
-          ]
-        },
-        // Back Face (-Z)
-        {
-          name: 'Back (B)',
-          center: [0, 0, -faceDist],
-          rot: [0, Math.PI, 0],
-          cw: { axis: 'z', layer: 0, dir: 1, move: 'B', desc: 'Грань B по часовой ↻' },
-          ccw: { axis: 'z', layer: 0, dir: -1, move: "B'", desc: 'Грань B против часовой ↺' },
-          edges: [
-            { pos: [edgeDist, 0, -faceDist], symbol: '⬆', axis: 'x', layer: N - 1, dir: -1, move: 'R', desc: 'Слой R вверх' },
-            { pos: [-edgeDist, 0, -faceDist], symbol: '⬇', axis: 'x', layer: 0, dir: -1, move: "L'", desc: 'Слой L вниз' }
-          ]
-        }
-      ];
-
-      facesConfig.forEach((fc) => {
-        // 1. Clockwise Curved Arrow (↻)
-        const cwOffset = 0.55;
-        const cwPos = [
-          fc.center[0] + (fc.rot[1] === 0 ? cwOffset : 0),
-          fc.center[1] + (fc.rot[0] === 0 ? cwOffset : 0),
-          fc.center[2]
-        ];
-        this.addArrowSprite(
-          fc.cw.move,
-          '↻',
-          fc.cw,
-          fc.center,
-          fc.rot,
-          [-0.45, 0.45, 0.05],
-          '#10b981'
-        );
-
-        // 2. Counter-Clockwise Curved Arrow (↺)
-        this.addArrowSprite(
-          fc.ccw.move,
-          '↺',
-          fc.ccw,
-          fc.center,
-          fc.rot,
-          [0.45, 0.45, 0.05],
-          '#f59e0b'
-        );
-
-        // 3. Directional edge arrows
-        if (fc.edges) {
-          fc.edges.forEach((ed) => {
-            this.addArrowSprite(
-              ed.move,
-              ed.symbol,
-              ed,
-              ed.pos,
-              fc.rot,
-              [0, 0, 0.02],
-              '#38bdf8'
-            );
-          });
-        }
-      });
-    }
-
-    addArrowSprite(move, symbol, config, basePos, rot, localOffset = [0, 0, 0], color = '#38bdf8') {
-      const tex = createArrowTexture(symbol, move, color);
-      const mat = new THREE.MeshBasicMaterial({
-        map: tex,
-        transparent: true,
-        side: THREE.DoubleSide,
-        depthTest: true
-      });
-      const geo = new THREE.PlaneGeometry(0.52, 0.52);
-      const mesh = new THREE.Mesh(geo, mat);
-
-      mesh.position.set(...basePos);
-      mesh.rotation.set(...rot);
-      mesh.translateX(localOffset[0]);
-      mesh.translateY(localOffset[1]);
-      mesh.translateZ(localOffset[2]);
-
-      mesh.userData = {
-        isArrow: true,
-        move: move,
-        symbol: symbol,
-        axis: config.axis,
-        layer: config.layer,
-        dir: config.dir,
-        desc: config.desc || `${move} (${symbol})`,
-        origScale: 1.0,
-        color: color
+      this.clearArrows();
+      this.currentHoveredFace = faceDir;
+      this.currentHoveredGrid = {
+        x: cubie.userData.gridX,
+        y: cubie.userData.gridY,
+        z: cubie.userData.gridZ
       };
 
-      this.arrowGroup.add(mesh);
-      this.arrowMeshes.push(mesh);
+      const N = parseInt(this.currentSize, 10);
+      const offset = (N - 1) / 2;
+      const spacing = 1.0;
+      const faceDist = offset + 0.62;
+
+      const gx = cubie.userData.gridX;
+      const gy = cubie.userData.gridY;
+      const gz = cubie.userData.gridZ;
+
+      const cubiePos = {
+        x: (gx - offset) * spacing,
+        y: (gy - offset) * spacing,
+        z: (gz - offset) * spacing
+      };
+
+      const arrowConfigs = [];
+      const d = 0.52; // arrow distance offset from cubie center
+
+      if (faceDir === '+z') {
+        // FRONT FACE (Green)
+        // Up: rotate col gx upwards (axis x, dir -1)
+        arrowConfigs.push({
+          pos: [cubiePos.x, cubiePos.y + d, faceDist],
+          rot: [0, 0, 0], symbol: '⬆', label: 'Вверх',
+          axis: 'x', layer: gx, dir: -1,
+          desc: `Повернуть вертикальный слой вверх (ход ${gx === N - 1 ? 'R' : (gx === 0 ? "L'" : 'M')})`
+        });
+        // Down: rotate col gx downwards (axis x, dir +1)
+        arrowConfigs.push({
+          pos: [cubiePos.x, cubiePos.y - d, faceDist],
+          rot: [0, 0, 0], symbol: '⬇', label: 'Вниз',
+          axis: 'x', layer: gx, dir: 1,
+          desc: `Повернуть вертикальный слой вниз (ход ${gx === N - 1 ? "R'" : (gx === 0 ? 'L' : "M'")})`
+        });
+        // Left: rotate row gy to left (axis y, dir -1)
+        arrowConfigs.push({
+          pos: [cubiePos.x - d, cubiePos.y, faceDist],
+          rot: [0, 0, 0], symbol: '⬅', label: 'Влево',
+          axis: 'y', layer: gy, dir: -1,
+          desc: `Повернуть горизонтальный слой влево (ход ${gy === N - 1 ? 'U' : (gy === 0 ? "D'" : 'E')})`
+        });
+        // Right: rotate row gy to right (axis y, dir +1)
+        arrowConfigs.push({
+          pos: [cubiePos.x + d, cubiePos.y, faceDist],
+          rot: [0, 0, 0], symbol: '➡', label: 'Вправо',
+          axis: 'y', layer: gy, dir: 1,
+          desc: `Повернуть горизонтальный слой вправо (ход ${gy === N - 1 ? "U'" : (gy === 0 ? 'D' : "E'")})`
+        });
+        // Clockwise Face turn
+        arrowConfigs.push({
+          pos: [offset * 0.7, offset * 0.7, faceDist],
+          rot: [0, 0, 0], symbol: '↻', label: 'F',
+          axis: 'z', layer: N - 1, dir: -1,
+          desc: 'Повернуть переднюю грань F по часовой стрелке ↻'
+        });
+      } else if (faceDir === '+y') {
+        // TOP FACE (Yellow)
+        arrowConfigs.push({
+          pos: [cubiePos.x, faceDist, cubiePos.z - d],
+          rot: [-Math.PI / 2, 0, 0], symbol: '⬆', label: 'Назад',
+          axis: 'x', layer: gx, dir: -1,
+          desc: `Повернуть слой назад (ход ${gx === N - 1 ? 'R' : (gx === 0 ? "L'" : 'M')})`
+        });
+        arrowConfigs.push({
+          pos: [cubiePos.x, faceDist, cubiePos.z + d],
+          rot: [-Math.PI / 2, 0, 0], symbol: '⬇', label: 'Вперед',
+          axis: 'x', layer: gx, dir: 1,
+          desc: `Повернуть слой вперед (ход ${gx === N - 1 ? "R'" : (gx === 0 ? 'L' : "M'")})`
+        });
+        arrowConfigs.push({
+          pos: [cubiePos.x - d, faceDist, cubiePos.z],
+          rot: [-Math.PI / 2, 0, 0], symbol: '⬅', label: 'Влево',
+          axis: 'z', layer: gz, dir: -1,
+          desc: `Повернуть слой влево (ход ${gz === N - 1 ? "F'" : (gz === 0 ? 'B' : 'S')})`
+        });
+        arrowConfigs.push({
+          pos: [cubiePos.x + d, faceDist, cubiePos.z],
+          rot: [-Math.PI / 2, 0, 0], symbol: '➡', label: 'Вправо',
+          axis: 'z', layer: gz, dir: 1,
+          desc: `Повернуть слой вправо (ход ${gz === N - 1 ? 'F' : (gz === 0 ? "B'" : "S'")})`
+        });
+        arrowConfigs.push({
+          pos: [offset * 0.7, faceDist, offset * 0.7],
+          rot: [-Math.PI / 2, 0, 0], symbol: '↻', label: 'U',
+          axis: 'y', layer: N - 1, dir: -1,
+          desc: 'Повернуть верхнюю желтую грань U по часовой ↻'
+        });
+      } else if (faceDir === '-y') {
+        // BOTTOM FACE (White)
+        arrowConfigs.push({
+          pos: [cubiePos.x, -faceDist, cubiePos.z + d],
+          rot: [Math.PI / 2, 0, 0], symbol: '⬆', label: 'Вперед',
+          axis: 'x', layer: gx, dir: 1,
+          desc: `Повернуть слой вперед`
+        });
+        arrowConfigs.push({
+          pos: [cubiePos.x, -faceDist, cubiePos.z - d],
+          rot: [Math.PI / 2, 0, 0], symbol: '⬇', label: 'Назад',
+          axis: 'x', layer: gx, dir: -1,
+          desc: `Повернуть слой назад`
+        });
+        arrowConfigs.push({
+          pos: [cubiePos.x - d, -faceDist, cubiePos.z],
+          rot: [Math.PI / 2, 0, 0], symbol: '⬅', label: 'Влево',
+          axis: 'z', layer: gz, dir: 1,
+          desc: `Повернуть слой влево`
+        });
+        arrowConfigs.push({
+          pos: [cubiePos.x + d, -faceDist, cubiePos.z],
+          rot: [Math.PI / 2, 0, 0], symbol: '➡', label: 'Вправо',
+          axis: 'z', layer: gz, dir: -1,
+          desc: `Повернуть слой вправо`
+        });
+        arrowConfigs.push({
+          pos: [offset * 0.7, -faceDist, offset * 0.7],
+          rot: [Math.PI / 2, 0, 0], symbol: '↻', label: 'D',
+          axis: 'y', layer: 0, dir: 1,
+          desc: 'Повернуть нижнюю белую грань D по часовой ↻'
+        });
+      } else if (faceDir === '+x') {
+        // RIGHT FACE (Red)
+        arrowConfigs.push({
+          pos: [faceDist, cubiePos.y + d, cubiePos.z],
+          rot: [0, Math.PI / 2, 0], symbol: '⬆', label: 'Вверх',
+          axis: 'z', layer: gz, dir: 1,
+          desc: `Повернуть слой вверх`
+        });
+        arrowConfigs.push({
+          pos: [faceDist, cubiePos.y - d, cubiePos.z],
+          rot: [0, Math.PI / 2, 0], symbol: '⬇', label: 'Вниз',
+          axis: 'z', layer: gz, dir: -1,
+          desc: `Повернуть слой вниз`
+        });
+        arrowConfigs.push({
+          pos: [faceDist, cubiePos.y, cubiePos.z - d],
+          rot: [0, Math.PI / 2, 0], symbol: '⬅', label: 'Назад',
+          axis: 'y', layer: gy, dir: 1,
+          desc: `Повернуть слой назад`
+        });
+        arrowConfigs.push({
+          pos: [faceDist, cubiePos.y, cubiePos.z + d],
+          rot: [0, Math.PI / 2, 0], symbol: '➡', label: 'Вперед',
+          axis: 'y', layer: gy, dir: -1,
+          desc: `Повернуть слой вперед`
+        });
+        arrowConfigs.push({
+          pos: [faceDist, offset * 0.7, offset * 0.7],
+          rot: [0, Math.PI / 2, 0], symbol: '↻', label: 'R',
+          axis: 'x', layer: N - 1, dir: -1,
+          desc: 'Повернуть правую красную грань R по часовой ↻'
+        });
+      } else if (faceDir === '-x') {
+        // LEFT FACE (Orange)
+        arrowConfigs.push({
+          pos: [-faceDist, cubiePos.y + d, cubiePos.z],
+          rot: [0, -Math.PI / 2, 0], symbol: '⬆', label: 'Вверх',
+          axis: 'z', layer: gz, dir: -1,
+          desc: `Повернуть слой вверх`
+        });
+        arrowConfigs.push({
+          pos: [-faceDist, cubiePos.y - d, cubiePos.z],
+          rot: [0, -Math.PI / 2, 0], symbol: '⬇', label: 'Вниз',
+          axis: 'z', layer: gz, dir: 1,
+          desc: `Повернуть слой вниз`
+        });
+        arrowConfigs.push({
+          pos: [-faceDist, cubiePos.y, cubiePos.z + d],
+          rot: [0, -Math.PI / 2, 0], symbol: '⬅', label: 'Вперед',
+          axis: 'y', layer: gy, dir: -1,
+          desc: `Повернуть слой вперед`
+        });
+        arrowConfigs.push({
+          pos: [-faceDist, cubiePos.y, cubiePos.z - d],
+          rot: [0, -Math.PI / 2, 0], symbol: '➡', label: 'Назад',
+          axis: 'y', layer: gy, dir: 1,
+          desc: `Повернуть слой назад`
+        });
+        arrowConfigs.push({
+          pos: [-faceDist, offset * 0.7, offset * 0.7],
+          rot: [0, -Math.PI / 2, 0], symbol: '↻', label: 'L',
+          axis: 'x', layer: 0, dir: 1,
+          desc: 'Повернуть левую оранжевую грань L по часовой ↻'
+        });
+      } else if (faceDir === '-z') {
+        // BACK FACE (Blue)
+        arrowConfigs.push({
+          pos: [cubiePos.x, cubiePos.y + d, -faceDist],
+          rot: [0, Math.PI, 0], symbol: '⬆', label: 'Вверх',
+          axis: 'x', layer: gx, dir: 1,
+          desc: `Повернуть слой вверх`
+        });
+        arrowConfigs.push({
+          pos: [cubiePos.x, cubiePos.y - d, -faceDist],
+          rot: [0, Math.PI, 0], symbol: '⬇', label: 'Вниз',
+          axis: 'x', layer: gx, dir: -1,
+          desc: `Повернуть слой вниз`
+        });
+        arrowConfigs.push({
+          pos: [cubiePos.x + d, cubiePos.y, -faceDist],
+          rot: [0, Math.PI, 0], symbol: '⬅', label: 'Влево',
+          axis: 'y', layer: gy, dir: -1,
+          desc: `Повернуть слой влево`
+        });
+        arrowConfigs.push({
+          pos: [cubiePos.x - d, cubiePos.y, -faceDist],
+          rot: [0, Math.PI, 0], symbol: '➡', label: 'Вправо',
+          axis: 'y', layer: gy, dir: 1,
+          desc: `Повернуть слой вправо`
+        });
+        arrowConfigs.push({
+          pos: [offset * 0.7, offset * 0.7, -faceDist],
+          rot: [0, Math.PI, 0], symbol: '↻', label: 'B',
+          axis: 'z', layer: 0, dir: 1,
+          desc: 'Повернуть заднюю синюю грань B по часовой ↻'
+        });
+      }
+
+      const planeGeo = new THREE.PlaneGeometry(0.48, 0.48);
+
+      arrowConfigs.forEach((cfg) => {
+        const tex = createDirectionArrowTexture(cfg.symbol, cfg.label, '#ffe600');
+        const mat = new THREE.MeshBasicMaterial({
+          map: tex,
+          transparent: true,
+          side: THREE.DoubleSide,
+          depthTest: true
+        });
+
+        const mesh = new THREE.Mesh(planeGeo, mat);
+        mesh.position.set(...cfg.pos);
+        mesh.rotation.set(...cfg.rot);
+
+        mesh.userData = {
+          isArrow: true,
+          axis: cfg.axis,
+          layer: cfg.layer,
+          dir: cfg.dir,
+          desc: cfg.desc
+        };
+
+        this.arrowGroup.add(mesh);
+        this.arrowMeshes.push(mesh);
+      });
     }
 
-    createPyraminxArrows() {
-      const matCW = new THREE.MeshBasicMaterial({
-        map: createArrowTexture('↻', 'R', '#10b981'),
-        transparent: true
-      });
-      const matCCW = new THREE.MeshBasicMaterial({
-        map: createArrowTexture('↺', "R'", '#f59e0b'),
-        transparent: true
-      });
-      const geo = new THREE.PlaneGeometry(0.8, 0.8);
-
-      const m1 = new THREE.Mesh(geo, matCW);
-      m1.position.set(1.5, 0, 2);
-      m1.userData = { isArrow: true, axis: 'y', layer: 0, dir: 1, desc: 'Пирамидка по часовой ↻' };
-
-      const m2 = new THREE.Mesh(geo, matCCW);
-      m2.position.set(-1.5, 0, 2);
-      m2.userData = { isArrow: true, axis: 'y', layer: 0, dir: -1, desc: 'Пирамидка против часовой ↺' };
-
-      this.arrowGroup.add(m1, m2);
-      this.arrowMeshes.push(m1, m2);
-    }
-
-    // --- Face and Slice Rotations ---
+    // --- Slice Rotations (High Speed GAN Physics) ---
     rotateSlice(axis, layer, direction, customDuration = null, onComplete = null) {
       if (this.currentSize === 'pyraminx') {
         this.rotatePyraminx(direction, onComplete);
@@ -683,7 +837,6 @@
       const spacing = 1.0;
       const offset = (N - 1) / 2;
 
-      // Find all cubies in this slice layer
       const movingCubies = this.cubies.filter((c) => {
         if (axis === 'x') return c.userData.gridX === layer;
         if (axis === 'y') return c.userData.gridY === layer;
@@ -698,7 +851,6 @@
 
       this.isAnimating = true;
 
-      // Attach moving cubies to pivotGroup
       this.pivotGroup.position.set(0, 0, 0);
       this.pivotGroup.rotation.set(0, 0, 0);
       this.pivotGroup.updateMatrixWorld();
@@ -720,6 +872,7 @@
         const step = (time) => {
           const elapsed = time - startTime;
           const progress = Math.min(elapsed / duration, 1.0);
+          // Crisp GAN snappy easing
           const ease = progress < 0.5 ? 2 * progress * progress : -1 + (4 - 2 * progress) * progress;
 
           this.pivotGroup.rotation[axis] = startAngle + targetAngle * ease;
@@ -776,6 +929,7 @@
       this.isAnimating = false;
 
       this.sound.playClick();
+      this.clearArrows();
 
       if (!this.isScrambling && !this.isAutoSolving) {
         this.checkSolved();
@@ -786,7 +940,7 @@
 
     rotatePyraminx(direction, onComplete) {
       this.isAnimating = true;
-      const duration = this.animationSpeed || 200;
+      const duration = this.animationSpeed || 160;
       const targetAngle = direction * (Math.PI * 2 / 3);
 
       const startTime = performance.now();
@@ -830,13 +984,14 @@
       let layer = 0;
       let dir = 1;
 
+      // Note: Yellow on Top (+Y), White on Bottom (-Y)
       switch (base) {
-        case 'U': axis = 'y'; layer = N - 1; dir = -1; break;
-        case 'D': axis = 'y'; layer = 0;     dir = 1;  break;
-        case 'R': axis = 'x'; layer = N - 1; dir = -1; break;
-        case 'L': axis = 'x'; layer = 0;     dir = 1;  break;
-        case 'F': axis = 'z'; layer = N - 1; dir = -1; break;
-        case 'B': axis = 'z'; layer = 0;     dir = 1;  break;
+        case 'U': axis = 'y'; layer = N - 1; dir = -1; break; // Yellow
+        case 'D': axis = 'y'; layer = 0;     dir = 1;  break; // White
+        case 'R': axis = 'x'; layer = N - 1; dir = -1; break; // Red
+        case 'L': axis = 'x'; layer = 0;     dir = 1;  break; // Orange
+        case 'F': axis = 'z'; layer = N - 1; dir = -1; break; // Green
+        case 'B': axis = 'z'; layer = 0;     dir = 1;  break; // Blue
         default: return;
       }
 
@@ -863,11 +1018,12 @@
       }
     }
 
-    // --- Scramble Functionality ---
+    // --- Scramble ---
     scramble() {
       if (this.isAnimating || this.isScrambling || this.isAutoSolving) return;
 
       this.isScrambling = true;
+      this.clearArrows();
       this.resetTimer();
 
       const N = parseInt(this.currentSize, 10);
@@ -889,15 +1045,15 @@
       }
 
       this.showScrambleDisplay(sequence.join(' '));
-      this.showToast('Перемешивание кубика...');
+      this.showToast('GAN перемешивание...');
 
-      const scrambleSpeed = Math.min(this.animationSpeed, 80);
+      const scrambleSpeed = Math.min(this.animationSpeed, 75);
       let idx = 0;
 
       const runNextMove = () => {
         if (idx >= sequence.length) {
           this.isScrambling = false;
-          this.showToast('Кубик разобран! Попробуй собрать.');
+          this.showToast('Кубик разобран! Наведи на грань для стрелок.');
           return;
         }
         const move = sequence[idx++];
@@ -907,7 +1063,7 @@
       runNextMove();
     }
 
-    // --- Auto-Solve Functionality ---
+    // --- Auto-Solve ---
     autoSolve() {
       if (this.isAnimating || this.isScrambling || this.isAutoSolving) return;
       if (this.moveHistory.length === 0) {
@@ -916,17 +1072,18 @@
       }
 
       this.isAutoSolving = true;
+      this.clearArrows();
       this.stopTimer();
 
       const totalMoves = this.moveHistory.length;
-      this.showToast(`Авто-сборка: 0 из ${totalMoves}`);
+      this.showToast(`Авто-сборка GAN: 0 из ${totalMoves}`);
 
-      const solveSpeed = Math.min(this.animationSpeed, 120);
+      const solveSpeed = Math.min(this.animationSpeed, 110);
 
       const runSolveStep = () => {
         if (this.moveHistory.length === 0) {
           this.isAutoSolving = false;
-          this.showToast('Кубик успешно собран! 🎉');
+          this.showToast('GAN CUBE собран! 🏆');
           this.celebrateVictory();
           return;
         }
@@ -943,7 +1100,7 @@
       runSolveStep();
     }
 
-    // --- Reset Puzzle Instantly ---
+    // --- Reset ---
     resetPuzzle() {
       this.buildPuzzle(this.currentSize);
       this.resetTimer();
@@ -960,7 +1117,7 @@
       this.rotateSlice(lastMove.axis, lastMove.layer, -lastMove.dir, this.animationSpeed);
     }
 
-    // --- Check if Solved ---
+    // --- Check Solved ---
     checkSolved() {
       if (this.currentSize === 'pyraminx') return;
       if (this.cubies.length === 0) return;
@@ -995,12 +1152,12 @@
       }
     }
 
-    // --- Victory Celebration ---
+    // --- Victory ---
     celebrateVictory() {
       this.sound.playVictory();
 
       if (window.confetti) {
-        window.confetti({ particleCount: 130, spread: 85, origin: { y: 0.6 } });
+        window.confetti({ particleCount: 140, spread: 90, origin: { y: 0.6 } });
         setTimeout(() => {
           window.confetti({ particleCount: 90, angle: 60, spread: 60, origin: { x: 0 } });
           window.confetti({ particleCount: 90, angle: 120, spread: 60, origin: { x: 1 } });
@@ -1013,7 +1170,7 @@
       modal.style.display = 'flex';
     }
 
-    // --- Speedcubing Timer ---
+    // --- Timer ---
     startTimer() {
       if (this.timerRunning) return;
       this.timerRunning = true;
@@ -1035,9 +1192,9 @@
       const digits = document.getElementById('timerDigits');
       digits.classList.remove('running');
 
-      const best = localStorage.getItem('rubiks_best_time');
+      const best = localStorage.getItem('gan_best_time');
       if (!best || this.timerElapsed < parseFloat(best)) {
-        localStorage.setItem('rubiks_best_time', this.timerElapsed);
+        localStorage.setItem('gan_best_time', this.timerElapsed);
         document.getElementById('bestTime').innerText = this.formatTime(this.timerElapsed);
       }
     }
@@ -1062,7 +1219,7 @@
       document.getElementById('moveCount').innerText = count;
     }
 
-    // --- UI Notifications & Overlays ---
+    // --- UI Toasts ---
     showToast(message) {
       const toast = document.getElementById('statusToast');
       toast.innerText = message;
@@ -1084,7 +1241,7 @@
       box.style.display = 'none';
     }
 
-    // --- Highlight Slice on Arrow Hover ---
+    // --- Slice Highlight on Arrow Hover ---
     highlightSlice(axis, layer) {
       this.clearHighlightSlice();
       this.cubies.forEach((c) => {
@@ -1096,8 +1253,8 @@
         if (match) {
           c.children.forEach((child) => {
             if (child.material && child.material.emissive) {
-              child.material.emissive.setHex(0x22d3ee);
-              child.material.emissiveIntensity = 0.35;
+              child.material.emissive.setHex(0xffe600);
+              child.material.emissiveIntensity = 0.38;
             }
           });
           this.highlightedCubies.push(c);
@@ -1117,7 +1274,7 @@
       this.highlightedCubies = [];
     }
 
-    // --- Pointer & Arrow Raycasting Interaction ---
+    // --- Interactive Mouse Raycasting & Dynamic Arrow Display ---
     setupInteraction() {
       const canvas = document.getElementById('cubeCanvas');
       const tooltip = document.getElementById('arrowTooltip');
@@ -1138,14 +1295,15 @@
           const dist = Math.hypot(e.clientX - this.pointerDownPos.x, e.clientY - this.pointerDownPos.y);
           if (dist > 6) {
             this.dragThresholdPassed = true;
-            // Dragging anywhere spins the 3D cube view!
             tooltip.style.display = 'none';
             this.clearHighlightSlice();
             return;
           }
         }
 
-        // Raycast against 3D arrows first
+        if (this.isAnimating) return;
+
+        // 1. Raycast against existing 3D arrows
         this.raycaster.setFromCamera(this.mouse, this.camera);
         const arrowHits = this.raycaster.intersectObjects(this.arrowMeshes);
 
@@ -1158,28 +1316,55 @@
               this.activeHoveredArrow.scale.set(1, 1, 1);
             }
             this.activeHoveredArrow = hitArrow;
-            hitArrow.scale.set(1.22, 1.22, 1.22);
-
+            hitArrow.scale.set(1.25, 1.25, 1.25);
             this.highlightSlice(hitArrow.userData.axis, hitArrow.userData.layer);
           }
 
-          // Show Tooltip
           tooltipText.innerText = hitArrow.userData.desc;
           tooltip.style.left = `${e.clientX}px`;
           tooltip.style.top = `${e.clientY}px`;
           tooltip.style.display = 'block';
+          return;
+        }
+
+        // Reset arrow scale if not hovering an arrow
+        if (this.activeHoveredArrow) {
+          this.activeHoveredArrow.scale.set(1, 1, 1);
+          this.activeHoveredArrow = null;
+          this.clearHighlightSlice();
+          tooltip.style.display = 'none';
+        }
+
+        // 2. Raycast against the cube face to spawn/update directional arrows on that face!
+        const cubeHits = this.raycaster.intersectObjects(this.cubeGroup.children, true);
+        if (cubeHits.length > 0) {
+          const hit = cubeHits[0];
+          let cubie = hit.object;
+          while (cubie && !cubie.userData.isCubie && cubie.parent) {
+            cubie = cubie.parent;
+          }
+
+          if (cubie && cubie.userData.isCubie && hit.face) {
+            canvas.style.cursor = 'pointer';
+
+            // Find face normal in world space
+            const worldNorm = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
+            let faceDir = '+z';
+
+            if (Math.abs(worldNorm.x) > 0.8) faceDir = worldNorm.x > 0 ? '+x' : '-x';
+            else if (Math.abs(worldNorm.y) > 0.8) faceDir = worldNorm.y > 0 ? '+y' : '-y';
+            else if (Math.abs(worldNorm.z) > 0.8) faceDir = worldNorm.z > 0 ? '+z' : '-z';
+
+            // Spawn arrows on this face!
+            this.updateDirectionArrowsOnFace(faceDir, cubie);
+          }
         } else {
           canvas.style.cursor = 'grab';
-          if (this.activeHoveredArrow) {
-            this.activeHoveredArrow.scale.set(1, 1, 1);
-            this.activeHoveredArrow = null;
-            this.clearHighlightSlice();
-            tooltip.style.display = 'none';
-          }
+          tooltip.style.display = 'none';
         }
       });
 
-      canvas.addEventListener('pointerup', (e) => {
+      canvas.addEventListener('pointerup', () => {
         this.isPointerDown = false;
 
         // If it was a click (not a camera drag) and clicked on an arrow:
@@ -1195,7 +1380,7 @@
               axis: data.axis,
               layer: data.layer,
               dir: data.dir,
-              moveStr: data.move
+              moveStr: 'MOVE'
             });
             this.updateMoveCounter(this.moveHistory.length);
 
@@ -1214,7 +1399,7 @@
     bindUI() {
       this.setupInteraction();
 
-      // Puzzle type buttons (2x2, 3x3, 4x4, 5x5, Pyraminx)
+      // Puzzle type buttons
       document.querySelectorAll('.type-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
           document.querySelectorAll('.type-btn').forEach((b) => b.classList.remove('active'));
@@ -1224,7 +1409,7 @@
         });
       });
 
-      // 360 Viewpoint Switcher buttons
+      // 360 Viewpoint buttons
       document.querySelectorAll('.cam-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
           document.querySelectorAll('.cam-btn').forEach((b) => b.classList.remove('active'));
@@ -1234,12 +1419,12 @@
         });
       });
 
-      // Primary Action Buttons
+      // Primary buttons
       document.getElementById('scrambleBtn').addEventListener('click', () => this.scramble());
       document.getElementById('solveBtn').addEventListener('click', () => this.autoSolve());
       document.getElementById('resetBtn').addEventListener('click', () => this.resetPuzzle());
 
-      // Virtual Notation Turn Buttons
+      // Virtual Notation buttons
       document.querySelectorAll('.turn-btn[data-move]').forEach((btn) => {
         btn.addEventListener('click', () => {
           const move = btn.getAttribute('data-move');
@@ -1250,15 +1435,7 @@
       // Undo button
       document.getElementById('undoMoveBtn').addEventListener('click', () => this.undoLastMove());
 
-      // Toggle Arrows visibility button
-      const toggleArrowsBtn = document.getElementById('toggleArrowsBtn');
-      toggleArrowsBtn.addEventListener('click', () => {
-        this.arrowGroup.visible = !this.arrowGroup.visible;
-        toggleArrowsBtn.classList.toggle('active', this.arrowGroup.visible);
-        toggleArrowsBtn.innerText = this.arrowGroup.visible ? '🎯 Стрелки: Вкл' : '🎯 Стрелки: Скрыты';
-      });
-
-      // Animation speed select
+      // Speed selector
       const speedSelect = document.getElementById('speedSelect');
       speedSelect.addEventListener('change', (e) => {
         this.animationSpeed = parseInt(e.target.value, 10);
@@ -1269,23 +1446,15 @@
       soundBtn.addEventListener('click', () => {
         this.sound.enabled = !this.sound.enabled;
         soundBtn.innerText = this.sound.enabled ? '🔊' : '🔇';
-        this.showToast(this.sound.enabled ? 'Звук включен' : 'Звук выключен');
+        this.showToast(this.sound.enabled ? 'Звук GAN включен' : 'Звук выключен');
       });
 
-      // Theme toggle
-      const themeBtn = document.getElementById('themeToggleBtn');
-      const themeNames = ['classic', 'neon', 'pastel'];
-      themeBtn.addEventListener('click', () => {
-        let nextIdx = (themeNames.indexOf(this.currentThemeName) + 1) % themeNames.length;
-        this.currentThemeName = themeNames[nextIdx];
-        this.theme = THEMES[this.currentThemeName];
-        document.body.className = `theme-${this.currentThemeName}`;
-        this.scene.background = new THREE.Color(this.theme.bg);
-        this.buildPuzzle(this.currentSize);
-        this.showToast(`Тема: ${this.currentThemeName.toUpperCase()}`);
+      // Reset camera
+      document.getElementById('resetCameraBtn').addEventListener('click', () => {
+        this.setDefaultCamera();
       });
 
-      // Toggle virtual notation controls
+      // Toggle notation controls
       const toggleControlsBtn = document.getElementById('toggleControlsBtn');
       toggleControlsBtn.addEventListener('click', () => {
         const vControls = document.getElementById('virtualControls');
@@ -1322,7 +1491,7 @@
       });
 
       // Load saved best time
-      const savedBest = localStorage.getItem('rubiks_best_time');
+      const savedBest = localStorage.getItem('gan_best_time');
       if (savedBest) {
         document.getElementById('bestTime').innerText = this.formatTime(parseFloat(savedBest));
       }
@@ -1352,11 +1521,10 @@
       });
     }
 
-    // --- Animation Loop ---
+    // --- Main Render Loop ---
     animate() {
       requestAnimationFrame(() => this.animate());
 
-      // Smooth camera transition when preset is clicked
       if (this.isTransitioningCamera && this.targetCameraPos) {
         this.camera.position.lerp(this.targetCameraPos, 0.12);
         this.controls.target.set(0, 0, 0);
@@ -1371,7 +1539,6 @@
     }
   }
 
-  // Initialize application on DOM ready
   window.addEventListener('DOMContentLoaded', () => {
     window.app = new RubiksCubeApp();
   });

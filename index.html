@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Кубик Рубика 3D — Полный обзор 360° и интерактивные стрелки</title>
-  <meta name="description" content="3D Кубик Рубика онлайн с полным обзором на 360 градусов, интерактивными стрелками на ребрах, кнопками разобрать и собрать.">
+  <title>GAN Cube 3D — Премиальный 3D Кубик Рубика с управлением стрелками</title>
+  <meta name="description" content="Премиальный 3D Кубик Рубика в стиле GAN Cube. Управление стрелками при наведении на грань, желтый цвет сверху, белый снизу, полный обзор 360°, кнопки разобрать и собрать.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎲</text></svg>">
   <link rel="stylesheet" href="styles.css">
   <!-- Three.js and OrbitControls -->
@@ -13,15 +13,15 @@
   <!-- Canvas Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
-<body>
+<body class="theme-gan">
   <div id="app">
     <!-- Top Header Bar -->
     <header class="top-nav">
       <div class="logo-group">
-        <div class="cube-icon">🎲</div>
+        <div class="cube-icon">⚡</div>
         <div class="title-wrap">
-          <h1>КУБИК РУБИКА <span>3D</span></h1>
-          <span class="badge" id="cubeSizeBadge">3x3x3</span>
+          <h1>GAN <span>356 3D</span></h1>
+          <span class="badge" id="cubeSizeBadge">3x3x3 Premium</span>
         </div>
       </div>
 
@@ -36,10 +36,7 @@
 
       <!-- Quick Options -->
       <div class="header-actions">
-        <button id="themeToggleBtn" class="icon-btn" title="Сменить тему оформления">
-          🎨
-        </button>
-        <button id="soundToggleBtn" class="icon-btn" title="Звук: Вкл/Выкл">
+        <button id="soundToggleBtn" class="icon-btn" title="Звук клика: Вкл/Выкл">
           🔊
         </button>
         <button id="helpBtn" class="icon-btn" title="Управление и подсказки">
@@ -51,12 +48,12 @@
     <!-- 360 Viewpoint Switcher Toolbar -->
     <nav class="view-toolbar" aria-label="360 обзор">
       <span class="view-toolbar-label">🔄 Обзор 360°:</span>
-      <button class="cam-btn" data-cam="front">Спереди (F)</button>
-      <button class="cam-btn" data-cam="back">Сзади (B)</button>
-      <button class="cam-btn" data-cam="top">Сверху (U)</button>
-      <button class="cam-btn" data-cam="bottom">Снизу (D)</button>
-      <button class="cam-btn" data-cam="left">Слева (L)</button>
-      <button class="cam-btn" data-cam="right">Справа (R)</button>
+      <button class="cam-btn" data-cam="top">Сверху (Желтый)</button>
+      <button class="cam-btn" data-cam="front">Спереди (Зеленый)</button>
+      <button class="cam-btn" data-cam="right">Справа (Красный)</button>
+      <button class="cam-btn" data-cam="left">Слева (Оранжевый)</button>
+      <button class="cam-btn" data-cam="back">Сзади (Синий)</button>
+      <button class="cam-btn" data-cam="bottom">Снизу (Белый)</button>
       <button class="cam-btn active" data-cam="iso">3D Угол</button>
     </nav>
 
@@ -64,14 +61,14 @@
     <main id="canvas-container">
       <canvas id="cubeCanvas"></canvas>
 
-      <!-- Arrow Action Hint Tooltip -->
+      <!-- Floating Direction Arrow Tooltip -->
       <div id="arrowTooltip" class="arrow-tooltip">
-        <span id="arrowTooltipText">Стрелка поворота</span>
+        <span id="arrowTooltipText">Повернуть грань</span>
       </div>
 
       <!-- Interactive Helper Banner -->
       <div class="helper-banner">
-        💡 Зажмите и тяните в любом месте для свободного <b>вращения на 360°</b>. Наведите курсор на грань — появятся <b>стрелки поворота</b>!
+        🎯 <b>Управление стрелками:</b> наведите курсор на любую грань кубика — появятся <b>стрелки направления</b>. Кликните стрелку, чтобы повернуть грань!
       </div>
 
       <!-- Scramble Notation Overlay -->
@@ -129,18 +126,18 @@
       <!-- Quick Virtual Face Rotation Buttons -->
       <div class="virtual-controls" id="virtualControls">
         <div class="virtual-row">
-          <span class="row-label">Грани:</span>
-          <button class="turn-btn" data-move="U">U</button>
+          <span class="row-label">Нотация:</span>
+          <button class="turn-btn" data-move="U" title="Желтая грань по часовой">U (Желтый)</button>
           <button class="turn-btn" data-move="U'">U'</button>
-          <button class="turn-btn" data-move="D">D</button>
+          <button class="turn-btn" data-move="D" title="Белая грань">D (Белый)</button>
           <button class="turn-btn" data-move="D'">D'</button>
-          <button class="turn-btn" data-move="L">L</button>
-          <button class="turn-btn" data-move="L'">L'</button>
-          <button class="turn-btn" data-move="R">R</button>
-          <button class="turn-btn" data-move="R'">R'</button>
-          <button class="turn-btn" data-move="F">F</button>
+          <button class="turn-btn" data-move="F" title="Зеленая грань">F (Зеленый)</button>
           <button class="turn-btn" data-move="F'">F'</button>
-          <button class="turn-btn" data-move="B">B</button>
+          <button class="turn-btn" data-move="R" title="Красная грань">R (Красный)</button>
+          <button class="turn-btn" data-move="R'">R'</button>
+          <button class="turn-btn" data-move="L" title="Оранжевая грань">L (Оранжевый)</button>
+          <button class="turn-btn" data-move="L'">L'</button>
+          <button class="turn-btn" data-move="B" title="Синяя грань">B (Синий)</button>
           <button class="turn-btn" data-move="B'">B'</button>
           <button id="undoMoveBtn" class="turn-btn turn-btn-undo" title="Отменить ход">↩ Назад</button>
         </div>
@@ -149,16 +146,16 @@
       <!-- Speed & View Slider bar -->
       <div class="secondary-bar">
         <div class="slider-group">
-          <label for="speedSelect">Скорость:</label>
+          <label for="speedSelect">Скорость GAN:</label>
           <select id="speedSelect" class="styled-select">
-            <option value="400">Плавная (0.4s)</option>
-            <option value="200" selected>Нормальная (0.2s)</option>
-            <option value="90">Быстрая (0.09s)</option>
+            <option value="350">Плавная (0.35s)</option>
+            <option value="160" selected>GAN Speed (0.16s)</option>
+            <option value="80">Турбо (0.08s)</option>
             <option value="0">Мгновенно</option>
           </select>
         </div>
         <div class="view-group">
-          <button id="toggleArrowsBtn" class="text-btn active">🎯 Стрелки: Всегда</button>
+          <button id="resetCameraBtn" class="text-btn">🎥 Исходный вид</button>
           <button id="toggleControlsBtn" class="text-btn">⌨ Кнопки нотации</button>
         </div>
       </div>
@@ -168,8 +165,8 @@
     <div id="victoryModal" class="modal-backdrop" style="display: none;">
       <div class="modal-card victory-card">
         <div class="victory-icon">🏆</div>
-        <h2>КУБИК СОБРАН!</h2>
-        <p class="victory-subtitle">Поздравляем! Отличная сборка!</p>
+        <h2>GAN CUBE СОБРАН!</h2>
+        <p class="victory-subtitle">Великолепная скорость и точность сборки!</p>
         <div class="victory-stats">
           <div class="vstat">
             <span class="vstat-num" id="modalTime">00:00.00</span>
@@ -191,36 +188,28 @@
     <div id="helpModal" class="modal-backdrop" style="display: none;">
       <div class="modal-card">
         <div class="modal-header">
-          <h3>📖 Как управлять кубиком</h3>
+          <h3>⚡ Управление кубиком GAN 3D</h3>
           <button id="helpCloseBtn" class="close-btn">✕</button>
         </div>
         <div class="modal-body">
           <div class="help-section">
-            <h4>🔄 Вращение на 360 градусов</h4>
-            <p>Зажмите левую кнопку мыши (или палец на экране смартфона) в любой точке и свободно крутите кубик во всех направлениях на 360°, чтобы рассмотреть любую деталь.</p>
+            <h4>🎯 Интерактивные стрелки</h4>
+            <p>Наведите курсор на любую грань кубика — на ней тут же появятся <b>стрелки направления</b> (вверх ⬆️, вниз ⬇️, влево ⬅️, вправо ➡️, по часовой ↻, против часовой ↺). При наведении на стрелку подсветится слой, который будет повернут. Кликните стрелку, чтобы повернуть грань!</p>
           </div>
           <div class="help-section">
-            <h4>🎯 Интерактивные стрелки на ребрах</h4>
-            <p>Наведите курсор на любую грань или ребро — появятся яркие светящиеся стрелки. При клике на стрелку грань сразу же повернется в указанном направлении!</p>
+            <h4>🎨 Цветовая схема GAN</h4>
+            <ul>
+              <li><strong>Желтый:</strong> СВЕРХУ (с логотипом GAN)</li>
+              <li><strong>Белый:</strong> СНИЗУ</li>
+              <li><strong>Зеленый:</strong> СПЕРЕДИ</li>
+              <li><strong>Синий:</strong> СЗАДИ</li>
+              <li><strong>Красный:</strong> СПРАВА</li>
+              <li><strong>Оранжевый:</strong> СЛЕВА</li>
+            </ul>
           </div>
           <div class="help-section">
-            <h4>⌨ Горячие клавиши (WCA)</h4>
-            <div class="keys-grid">
-              <div><kbd>U</kbd> Вверх (по часовой)</div>
-              <div><kbd>Shift + U</kbd> Вверх (U')</div>
-              <div><kbd>D</kbd> Низ (Down)</div>
-              <div><kbd>Shift + D</kbd> Низ (D')</div>
-              <div><kbd>L</kbd> Левая (Left)</div>
-              <div><kbd>Shift + L</kbd> Левая (L')</div>
-              <div><kbd>R</kbd> Правая (Right)</div>
-              <div><kbd>Shift + R</kbd> Правая (R')</div>
-              <div><kbd>F</kbd> Передняя (Front)</div>
-              <div><kbd>Shift + F</kbd> Передняя (F')</div>
-              <div><kbd>B</kbd> Задняя (Back)</div>
-              <div><kbd>Shift + B</kbd> Задняя (B')</div>
-              <div><kbd>Пробел</kbd> Старт / Стоп таймера</div>
-              <div><kbd>Ctrl + Z</kbd> Отменить ход</div>
-            </div>
+            <h4>🔄 Свободный обзор на 360°</h4>
+            <p>Зажмите левую кнопку мыши или палец в любом месте экрана (или на кубике вне стрелок) и свободно вращайте кубик во всех направлениях на 360 градусов.</p>
           </div>
         </div>
         <div class="modal-footer">
