@@ -34,6 +34,19 @@
         <button class="type-btn" data-type="pyraminx">Пирамидка</button>
       </div>
 
+      <!-- Main Mode Switcher Tabs -->
+      <nav class="main-mode-nav" id="mainModeNav">
+        <button class="mode-tab-btn active" id="tabSimulatorBtn" data-mode="simulator">
+          <span class="tab-icon">🎮</span>
+          <span class="tab-text">3D Симулятор</span>
+        </button>
+        <button class="mode-tab-btn" id="tabSolverBtn" data-mode="custom-solver">
+          <span class="tab-icon">🎨</span>
+          <span class="tab-text">Собрать свой кубик</span>
+          <span class="tab-pill">AI Решатель</span>
+        </button>
+      </nav>
+
       <!-- Quick Options -->
       <div class="header-actions">
         <button id="soundToggleBtn" class="icon-btn" title="Звук клика: Вкл/Выкл">
@@ -44,6 +57,38 @@
         </button>
       </div>
     </header>
+
+    <!-- Custom Solver: Top WCA Solution Scramble HUD (For advanced cubers) -->
+    <div id="solutionHUD" class="solution-hud" style="display: none;">
+      <div class="hud-top-bar">
+        <div class="hud-title-wrap">
+          <span class="hud-sparkle">⚡</span>
+          <strong>Полный скрамбл сборки (WCA):</strong>
+          <span class="hud-badge" id="hudMoveCountBadge">0 ходов</span>
+        </div>
+        <button id="copyFormulaBtn" class="hud-btn-copy" title="Скопировать формулу для спидкубинга">
+          📋 Скопировать формулу
+        </button>
+      </div>
+      <div class="hud-formula-scroll" id="hudFormulaScroll">
+        <!-- Rendered tokens like R, U, R', U' with active highlight -->
+      </div>
+      <div class="hud-step-card" id="hudStepCard">
+        <span class="step-badge" id="hudStepBadge">Шаг 1 из 19: R</span>
+        <span class="step-text" id="hudStepText">Поверните правую грань по часовой стрелке ⬆️</span>
+      </div>
+    </div>
+
+    <!-- Custom Solver: Instructions & Color Counter Banner -->
+    <div id="customColoringBanner" class="coloring-banner" style="display: none;">
+      <div class="banner-left">
+        <span class="banner-badge">🎨 Раскраска кубика</span>
+        <span class="banner-guide">Держите кубик: 🟡 <b>Желтый сверху</b>, ⚪ <b>Белый снизу</b>, 🟢 <b>Зеленый спереди</b></span>
+      </div>
+      <div class="banner-right">
+        <span class="banner-progress" id="bannerProgress">Закрашено: <b id="paintedCount">6</b> / 54</span>
+      </div>
+    </div>
 
     <!-- 360 Viewpoint Switcher Toolbar -->
     <nav class="view-toolbar" aria-label="360 обзор">
@@ -100,6 +145,19 @@
           <span>Лучшее: <b id="bestTime">--:--</b></span>
         </div>
       </div>
+
+      <!-- 2D Unfold Net Panel (Развертка для быстрой раскраски) -->
+      <aside id="unfoldPanel" class="unfold-panel" style="display: none;">
+        <div class="unfold-header">
+          <span class="unfold-title">🗺 Развертка 2D</span>
+          <button id="toggleUnfoldBtn" class="unfold-toggle-btn" title="Свернуть / Развернуть развертку">−</button>
+        </div>
+        <div class="unfold-body" id="unfoldBody">
+          <div class="unfold-net-grid" id="unfoldNetGrid">
+            <!-- Dynamically populated with U, L, F, R, B, D facelets -->
+          </div>
+        </div>
+      </aside>
     </main>
 
     <!-- Floating Bottom Control Panel -->
@@ -181,6 +239,102 @@
       </div>
     </footer>
 
+    <!-- Custom Solver: Bottom Control Panel with Palette & Actions -->
+    <div id="customSolverPanel" class="custom-solver-panel" style="display: none;">
+      <!-- Color Palette -->
+      <div class="palette-bar" id="paletteBar">
+        <span class="palette-legend">Цвет для кисти:</span>
+        <div class="palette-items">
+          <button class="palette-swatch active" data-color="U" style="--swatch-color: #ffe600;" title="Желтый (Верхняя грань)">
+            <span class="swatch-circle" style="background: #ffe600;"></span>
+            <span class="swatch-name">Желтый</span>
+            <span class="swatch-counter" id="count-U">1/9</span>
+          </button>
+          <button class="palette-swatch" data-color="D" style="--swatch-color: #ffffff;" title="Белый (Нижняя грань)">
+            <span class="swatch-circle" style="background: #ffffff;"></span>
+            <span class="swatch-name">Белый</span>
+            <span class="swatch-counter" id="count-D">1/9</span>
+          </button>
+          <button class="palette-swatch" data-color="F" style="--swatch-color: #00d053;" title="Зеленый (Передняя грань)">
+            <span class="swatch-circle" style="background: #00d053;"></span>
+            <span class="swatch-name">Зеленый</span>
+            <span class="swatch-counter" id="count-F">1/9</span>
+          </button>
+          <button class="palette-swatch" data-color="B" style="--swatch-color: #0066ff;" title="Синий (Задняя грань)">
+            <span class="swatch-circle" style="background: #0066ff;"></span>
+            <span class="swatch-name">Синий</span>
+            <span class="swatch-counter" id="count-B">1/9</span>
+          </button>
+          <button class="palette-swatch" data-color="R" style="--swatch-color: #ff2638;" title="Красный (Правая грань)">
+            <span class="swatch-circle" style="background: #ff2638;"></span>
+            <span class="swatch-name">Красный</span>
+            <span class="swatch-counter" id="count-R">1/9</span>
+          </button>
+          <button class="palette-swatch" data-color="L" style="--swatch-color: #ff7500;" title="Оранжевый (Левая грань)">
+            <span class="swatch-circle" style="background: #ff7500;"></span>
+            <span class="swatch-name">Оранжевый</span>
+            <span class="swatch-counter" id="count-L">1/9</span>
+          </button>
+          <button class="palette-swatch eraser" data-color="eraser" title="Ластик — сбросить наклейку в черный">
+            <span class="swatch-circle eraser-icon">✕</span>
+            <span class="swatch-name">Ластик</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Coloring Actions -->
+      <div class="custom-action-row" id="customColoringActions">
+        <button id="findSolutionBtn" class="action-btn solve primary-glow" title="Запустить расчет формулы">
+          <span class="btn-icon">⚡</span>
+          <span class="btn-text">
+            <strong>РЕШИТЬ КУБИК</strong>
+            <small>Показать длинные стрелки</small>
+          </span>
+        </button>
+        <button id="sampleScrambleBtn" class="action-btn" title="Заполнить случайным реальным узором для быстрой проверки">
+          <span class="btn-icon">🎲</span>
+          <span class="btn-text">
+            <strong>Пример</strong>
+            <small>Случайный узор</small>
+          </span>
+        </button>
+        <button id="fillSolvedBtn" class="action-btn" title="Заполнить кубик как собранный">
+          <span class="btn-icon">✨</span>
+          <span class="btn-text">
+            <strong>Собранный</strong>
+            <small>Заполнить все</small>
+          </span>
+        </button>
+        <button id="clearCustomBtn" class="action-btn reset" title="Очистить все грани в черный цвет">
+          <span class="btn-icon">🔄</span>
+          <span class="btn-text">
+            <strong>Очистить</strong>
+            <small>Черный кубик</small>
+          </span>
+        </button>
+      </div>
+
+      <!-- Solution Step-by-Step Playback Controls -->
+      <div class="custom-action-row solution-playback" id="customPlaybackActions" style="display: none;">
+        <button id="stepPrevBtn" class="action-btn playback-btn" title="Предыдущий ход">
+          <span class="btn-icon">⏮</span>
+          <span class="btn-text"><strong>Назад</strong></span>
+        </button>
+        <button id="stepAutoPlayBtn" class="action-btn solve primary-glow playback-btn" title="Автоматическое воспроизведение сборки">
+          <span class="btn-icon" id="autoPlayIcon">▶</span>
+          <span class="btn-text"><strong id="autoPlayText">Авто-сборка</strong></span>
+        </button>
+        <button id="stepNextBtn" class="action-btn solve playback-btn" title="Следующий ход">
+          <span class="btn-icon">⏭</span>
+          <span class="btn-text"><strong>Вперед</strong></span>
+        </button>
+        <button id="editColorsBtn" class="action-btn playback-btn" title="Вернуться к раскраске кубика">
+          <span class="btn-icon">🎨</span>
+          <span class="btn-text"><strong>Изменить цвета</strong></span>
+        </button>
+      </div>
+    </div>
+
     <!-- Victory Modal -->
     <div id="victoryModal" class="modal-backdrop" style="display: none;">
       <div class="modal-card victory-card">
@@ -246,6 +400,8 @@
     </div>
   </div>
 
+  <!-- Kociemba Two-Phase Optimal Solver Engine -->
+  <script src="min2phase.js"></script>
   <script src="cube.js"></script>
 </body>
 </html>

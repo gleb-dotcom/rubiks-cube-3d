@@ -203,6 +203,17 @@
     return geo;
   }
 
+  // --- Kociemba 54-Facelet Mapping Helper ---
+  function getFaceletIndex(face, x, y, z) {
+    if (face === 'U') return z * 3 + x;
+    if (face === 'D') return 27 + (2 - z) * 3 + x;
+    if (face === 'F') return 18 + (2 - y) * 3 + x;
+    if (face === 'B') return 45 + (2 - y) * 3 + (2 - x);
+    if (face === 'R') return 9 + (2 - y) * 3 + (2 - z);
+    if (face === 'L') return 36 + (2 - y) * 3 + z;
+    return -1;
+  }
+
   // --- Main Rubik Engine & App State ---
   class RubiksCubeApp {
     constructor() {
@@ -217,6 +228,22 @@
       this.moveHistory = [];
       this.isScrambling = false;
       this.isAutoSolving = false;
+
+      // Mode state: 'simulator' | 'custom-solver'
+      this.currentMode = 'simulator';
+      this.activePaletteColor = 'U';
+      this.customCubeFacelets = new Array(54).fill('X');
+      this.customCubeFacelets[4] = 'U';
+      this.customCubeFacelets[13] = 'R';
+      this.customCubeFacelets[22] = 'F';
+      this.customCubeFacelets[31] = 'D';
+      this.customCubeFacelets[40] = 'L';
+      this.customCubeFacelets[49] = 'B';
+      this.customSolutionMoves = [];
+      this.customSolutionStep = 0;
+      this.isAutoPlayingSolution = false;
+      this.autoPlayTimer = null;
+      this.longArrowGroup = null;
 
       // Timer state
       this.timerRunning = false;
@@ -349,8 +376,23 @@
       this.arrowGroup = new THREE.Group();
       this.scene.add(this.arrowGroup);
 
+      // Prominent long curved arrows for custom solver solution
+      this.longArrowGroup = new THREE.Group();
+      this.scene.add(this.longArrowGroup);
+
       this.raycaster = new THREE.Raycaster();
       this.mouse = new THREE.Vector2();
+
+      // Warmup Kociemba tables in background
+      if (typeof window !== 'undefined' && window.min2phase && window.min2phase.initFull) {
+        setTimeout(() => {
+          try {
+            window.min2phase.initFull();
+          } catch (e) {
+            console.warn('min2phase warmup:', e);
+          }
+        }, 150);
+      }
 
       window.addEventListener('resize', () => this.onWindowResize());
     }
@@ -604,6 +646,166 @@
         if (a.geometry) a.geometry.dispose();
       }
       this.arrowMeshes = [];
+      this.clearLongArrow();
+    }
+
+    clearLongArrow() {
+      if (!this.longArrowGroup) return;
+      while (this.longArrowGroup.children.length > 0) {
+        const a = this.longArrowGroup.children[0];
+        this.longArrowGroup.remove(a);
+        if (a.material) a.material.dispose();
+        if (a.geometry) a.geometry.dispose();
+      }
+    }
+
+    // --- High-Visibility 3D Long Curved Arrow System ---
+    createLongCurvedArrow(face, clockwise, isDouble, label) {
+      const group = new THREE.Group();
+
+      const radius = 1.08;
+      const width = 0.34;
+      const arcLength = isDouble ? Math.PI * 1.15 : Math.PI * 0.72;
+      const headLen = 0.45;
+      const headWidth = 0.58;
+
+      const innerR = radius - width / 2;
+      const outerR = radius + width / 2;
+
+      const centerAng = Math.PI / 2;
+      const startAng = clockwise ? (centerAng + arcLength / 2) : (centerAng - arcLength / 2);
+      const endAng = clockwise ? (centerAng - arcLength / 2) : (centerAng + arcLength / 2);
+      const dir = clockwise ? -1 : 1;
+
+      const bodyEndAng = endAng - dir * (headLen / radius);
+
+      const segments = 22;
+      const shape = new THREE.Shape();
+      const outerPts = [];
+      const innerPts = [];
+
+      for (let i = 0; i <= segments; i++) {
+        const t = i / segments;
+        const a = startAng + t * (bodyEndAng - startAng);
+        outerPts.push(new THREE.Vector2(Math.cos(a) * outerR, Math.sin(a) * outerR));
+        innerPts.push(new THREE.Vector2(Math.cos(a) * innerR, Math.sin(a) * innerR));
+      }
+
+      const headLeft = new THREE.Vector2(
+        Math.cos(bodyEndAng) * (radius + headWidth / 2),
+        Math.sin(bodyEndAng) * (radius + headWidth / 2)
+      );
+      const headRight = new THREE.Vector2(
+        Math.cos(bodyEndAng) * (radius - headWidth / 2),
+        Math.sin(bodyEndAng) * (radius - headWidth / 2)
+      );
+      const headTip = new THREE.Vector2(
+        Math.cos(endAng) * radius,
+        Math.sin(endAng) * radius
+      );
+
+      shape.moveTo(innerPts[0].x, innerPts[0].y);
+      for (let i = 1; i <= segments; i++) {
+        shape.lineTo(innerPts[i].x, innerPts[i].y);
+      }
+      shape.lineTo(headRight.x, headRight.y);
+      shape.lineTo(headTip.x, headTip.y);
+      shape.lineTo(headLeft.x, headLeft.y);
+      for (let i = segments; i >= 0; i--) {
+        shape.lineTo(outerPts[i].x, outerPts[i].y);
+      }
+      shape.closePath();
+
+      const extrudeSettings = {
+        depth: 0.07,
+        bevelEnabled: true,
+        bevelSegments: 2,
+        steps: 1,
+        bevelSize: 0.02,
+        bevelThickness: 0.02
+      };
+      const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+      geo.center();
+
+      // Glowing Neon Cyan/Emerald Speedcube Arrow Material
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0x00f0ff,
+        emissive: 0x00d0ff,
+        emissiveIntensity: 0.95,
+        roughness: 0.2,
+        metalness: 0.35,
+        side: THREE.DoubleSide
+      });
+
+      const arrowMesh = new THREE.Mesh(geo, mat);
+      group.add(arrowMesh);
+
+      // Add center badge with move label (e.g. "R" or "U'")
+      if (label) {
+        const badgeCanvas = document.createElement('canvas');
+        badgeCanvas.width = 256;
+        badgeCanvas.height = 256;
+        const ctx = badgeCanvas.getContext('2d');
+
+        // Circular dark glass badge
+        ctx.beginPath();
+        ctx.arc(128, 128, 92, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(11, 17, 30, 0.94)';
+        ctx.fill();
+        ctx.lineWidth = 10;
+        ctx.strokeStyle = '#00f0ff';
+        ctx.stroke();
+
+        // Notation label
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 96px "Arial Black", -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, 128, 128);
+
+        const badgeTex = new THREE.CanvasTexture(badgeCanvas);
+        const badgeGeo = new THREE.PlaneGeometry(0.8, 0.8);
+        const badgeMat = new THREE.MeshBasicMaterial({
+          map: badgeTex,
+          transparent: true,
+          side: THREE.DoubleSide
+        });
+        const badgeMesh = new THREE.Mesh(badgeGeo, badgeMat);
+        badgeMesh.position.z = 0.08;
+        group.add(badgeMesh);
+      }
+
+      // Position and orient the group on the face
+      const dist = 1.58;
+      switch (face) {
+        case '+y': // U
+          group.position.set(0, dist, 0);
+          group.rotation.set(-Math.PI / 2, 0, 0);
+          break;
+        case '-y': // D
+          group.position.set(0, -dist, 0);
+          group.rotation.set(Math.PI / 2, 0, 0);
+          break;
+        case '+z': // F
+          group.position.set(0, 0, dist);
+          group.rotation.set(0, 0, 0);
+          break;
+        case '-z': // B
+          group.position.set(0, 0, -dist);
+          group.rotation.set(0, Math.PI, 0);
+          break;
+        case '+x': // R
+          group.position.set(dist, 0, 0);
+          group.rotation.set(0, Math.PI / 2, 0);
+          break;
+        case '-x': // L
+          group.position.set(-dist, 0, 0);
+          group.rotation.set(0, -Math.PI / 2, 0);
+          break;
+      }
+
+      group.userData = { isLongArrow: true };
+      return group;
     }
 
     getFaceName(faceDir) {
@@ -1568,6 +1770,24 @@
         if (!this.dragThresholdPassed) {
           this.raycaster.setFromCamera(this.mouse, this.camera);
 
+          // In Custom Solver Mode: paint clicked tile with active palette color!
+          if (this.currentMode === 'custom-solver') {
+            const cubeHits = this.raycaster.intersectObjects(this.cubeGroup.children, true);
+            if (cubeHits.length > 0) {
+              for (let hit of cubeHits) {
+                let obj = hit.object;
+                while (obj && (!obj.userData || !obj.userData.isCustomSticker) && obj.parent && obj.parent !== this.cubeGroup) {
+                  obj = obj.parent;
+                }
+                if (obj && obj.userData && obj.userData.isCustomSticker) {
+                  this.paintFacelet(obj.userData.faceletIndex, this.activePaletteColor);
+                  return;
+                }
+              }
+            }
+            return;
+          }
+
           // 1. Check if user clicked directly on one of the arrows:
           const arrowHits = this.raycaster.intersectObjects(this.arrowMeshes);
           if (arrowHits.length > 0) {
@@ -1781,11 +2001,96 @@
         document.getElementById('bestTime').innerText = this.formatTime(parseFloat(savedBest));
       }
 
+      // Mode Switcher buttons
+      document.querySelectorAll('.mode-tab-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const mode = btn.getAttribute('data-mode');
+          this.switchMode(mode);
+        });
+      });
+
+      // Custom Palette swatches
+      document.querySelectorAll('.palette-swatch').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.palette-swatch').forEach((b) => b.classList.remove('active'));
+          btn.classList.add('active');
+          this.activePaletteColor = btn.getAttribute('data-color');
+        });
+      });
+
+      // Custom Actions
+      const findSolBtn = document.getElementById('findSolutionBtn');
+      if (findSolBtn) findSolBtn.addEventListener('click', () => this.solveCustomCube());
+
+      const sampleBtn = document.getElementById('sampleScrambleBtn');
+      if (sampleBtn) sampleBtn.addEventListener('click', () => this.fillSampleScramble());
+
+      const fillSolBtn = document.getElementById('fillSolvedBtn');
+      if (fillSolBtn) fillSolBtn.addEventListener('click', () => this.fillSolvedCustomState());
+
+      const clearBtn = document.getElementById('clearCustomBtn');
+      if (clearBtn) clearBtn.addEventListener('click', () => this.clearCustomCube());
+
+      // Solution Playback Actions
+      const stepNextBtn = document.getElementById('stepNextBtn');
+      if (stepNextBtn) stepNextBtn.addEventListener('click', () => this.stepNextSolution());
+
+      const stepPrevBtn = document.getElementById('stepPrevBtn');
+      if (stepPrevBtn) stepPrevBtn.addEventListener('click', () => this.stepPrevSolution());
+
+      const autoPlayBtn = document.getElementById('stepAutoPlayBtn');
+      if (autoPlayBtn) autoPlayBtn.addEventListener('click', () => this.toggleAutoPlaySolution());
+
+      const editColorsBtn = document.getElementById('editColorsBtn');
+      if (editColorsBtn) editColorsBtn.addEventListener('click', () => this.returnToColoringMode());
+
+      const copyFormulaBtn = document.getElementById('copyFormulaBtn');
+      if (copyFormulaBtn) {
+        copyFormulaBtn.addEventListener('click', () => {
+          const formula = this.customSolutionMoves.join(' ');
+          if (!formula) return;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(formula);
+            this.showToast('Формула WCA скопирована в буфер обмена!');
+          } else {
+            prompt('Формула сборки:', formula);
+          }
+        });
+      }
+
+      const toggleUnfoldBtn = document.getElementById('toggleUnfoldBtn');
+      if (toggleUnfoldBtn) {
+        toggleUnfoldBtn.addEventListener('click', () => {
+          const panel = document.getElementById('unfoldPanel');
+          panel.classList.toggle('collapsed');
+          toggleUnfoldBtn.innerText = panel.classList.contains('collapsed') ? '+' : '−';
+        });
+      }
+
       // Keyboard Controls
       window.addEventListener('keydown', (e) => {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
 
-        // Keyboard Arrow Keys (⬆️ ⬇️ ⬅️ ➡️)
+        // Custom solver solution playback keys
+        if (this.currentMode === 'custom-solver' && this.customSolutionMoves.length > 0) {
+          if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            this.stepNextSolution();
+            return;
+          }
+          if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            this.stepPrevSolution();
+            return;
+          }
+          if (e.code === 'Space') {
+            e.preventDefault();
+            this.toggleAutoPlaySolution();
+            return;
+          }
+        }
+
+        // Keyboard Arrow Keys (⬆️ ⬇️ ⬅️ ➡️) for face turns
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
           e.preventDefault();
           this.handleArrowKeyPress(e.key);
@@ -1814,6 +2119,632 @@
       });
     }
 
+    // --- Switch Mode: Simulator vs Custom Real Cube Solver ---
+    switchMode(mode) {
+      if (this.currentMode === mode) return;
+      this.currentMode = mode;
+
+      document.querySelectorAll('.mode-tab-btn').forEach((b) => {
+        b.classList.toggle('active', b.getAttribute('data-mode') === mode);
+      });
+
+      const simSelector = document.querySelector('.puzzle-selector');
+      const simToolbar = document.querySelector('.view-toolbar');
+      const simBadge = document.getElementById('selectionBadge');
+      const simTimer = document.getElementById('timerContainer');
+      const simBottom = document.querySelector('.bottom-panel');
+
+      const solverHUD = document.getElementById('solutionHUD');
+      const solverBanner = document.getElementById('customColoringBanner');
+      const solverUnfold = document.getElementById('unfoldPanel');
+      const solverPanel = document.getElementById('customSolverPanel');
+
+      if (mode === 'simulator') {
+        if (simSelector) simSelector.style.display = 'flex';
+        if (simToolbar) simToolbar.style.display = 'flex';
+        if (simBadge) simBadge.style.display = 'flex';
+        if (simTimer) simTimer.style.display = 'block';
+        if (simBottom) simBottom.style.display = 'flex';
+
+        if (solverHUD) solverHUD.style.display = 'none';
+        if (solverBanner) solverBanner.style.display = 'none';
+        if (solverUnfold) solverUnfold.style.display = 'none';
+        if (solverPanel) solverPanel.style.display = 'none';
+
+        if (this.isAutoPlayingSolution) this.toggleAutoPlaySolution();
+        this.clearLongArrow();
+        this.buildPuzzle(this.currentSize);
+        this.showToast('Переключено в 3D Симулятор');
+      } else {
+        // Custom Solver Mode
+        if (simSelector) simSelector.style.display = 'none';
+        if (simToolbar) simToolbar.style.display = 'none';
+        if (simBadge) simBadge.style.display = 'none';
+        if (simTimer) simTimer.style.display = 'none';
+        if (simBottom) simBottom.style.display = 'none';
+
+        if (solverBanner) solverBanner.style.display = 'flex';
+        if (solverUnfold) solverUnfold.style.display = 'block';
+        if (solverPanel) solverPanel.style.display = 'flex';
+
+        if (this.customSolutionMoves.length > 0) {
+          if (solverHUD) solverHUD.style.display = 'block';
+          if (solverBanner) solverBanner.style.display = 'none';
+          document.getElementById('customColoringActions').style.display = 'none';
+          document.getElementById('customPlaybackActions').style.display = 'grid';
+        } else {
+          if (solverHUD) solverHUD.style.display = 'none';
+          document.getElementById('customColoringActions').style.display = 'grid';
+          document.getElementById('customPlaybackActions').style.display = 'none';
+        }
+
+        this.buildCustomBlackCube();
+        this.render2DNet();
+        this.updatePaletteCounters();
+        this.showToast('Режим раскраски своего кубика активен!');
+      }
+    }
+
+    // --- Build Custom Black 3x3 Cube for Physical Coloring ---
+    buildCustomBlackCube() {
+      this.currentSize = 3;
+      const N = 3;
+      this.clearArrows();
+      this.clearLongArrow();
+
+      while (this.cubeGroup.children.length > 0) {
+        const obj = this.cubeGroup.children[0];
+        this.cubeGroup.remove(obj);
+        if (obj.geometry) obj.geometry.dispose();
+      }
+      this.cubies = [];
+
+      const cubieSize = 0.96;
+      const spacing = 1.0;
+      const offset = (N - 1) / 2;
+
+      // Dark carbon matte core
+      const bodyMat = new THREE.MeshStandardMaterial({
+        color: 0x111318,
+        roughness: 0.35,
+        metalness: 0.12
+      });
+
+      const boxGeo = new THREE.BoxGeometry(cubieSize, cubieSize, cubieSize);
+      const tileGeo = createRoundedTileGeo(0.88, 0.08, 0.03);
+
+      for (let ix = 0; ix < N; ix++) {
+        for (let iy = 0; iy < N; iy++) {
+          for (let iz = 0; iz < N; iz++) {
+            const isExterior =
+              ix === 0 || ix === N - 1 ||
+              iy === 0 || iy === N - 1 ||
+              iz === 0 || iz === N - 1;
+            if (!isExterior) continue;
+
+            const x = (ix - offset) * spacing;
+            const y = (iy - offset) * spacing;
+            const z = (iz - offset) * spacing;
+
+            const cubieMesh = new THREE.Mesh(boxGeo, bodyMat.clone());
+            cubieMesh.position.set(x, y, z);
+
+            this.addCustomTilesToCubie(cubieMesh, ix, iy, iz, cubieSize, tileGeo);
+
+            cubieMesh.userData = {
+              gridX: ix,
+              gridY: iy,
+              gridZ: iz,
+              initGridX: ix,
+              initGridY: iy,
+              initGridZ: iz,
+              isCubie: true
+            };
+
+            this.cubeGroup.add(cubieMesh);
+            this.cubies.push(cubieMesh);
+          }
+        }
+      }
+
+      this.setDefaultCamera();
+    }
+
+    addCustomTilesToCubie(cubie, ix, iy, iz, size, tileGeo) {
+      const tileOffset = size / 2 + 0.02;
+
+      // Yellow (+Y) Top, White (-Y) Bottom, Green (+Z) Front, Blue (-Z) Back, Red (+X) Right, Orange (-X) Left
+      const faces = [
+        { face: 'U', dir: '+y', cond: iy === 2, rot: [-Math.PI / 2, 0, 0], pos: [0, tileOffset, 0], isCenter: (ix === 1 && iz === 1) },
+        { face: 'D', dir: '-y', cond: iy === 0, rot: [Math.PI / 2, 0, 0], pos: [0, -tileOffset, 0], isCenter: (ix === 1 && iz === 1) },
+        { face: 'F', dir: '+z', cond: iz === 2, rot: [0, 0, 0], pos: [0, 0, tileOffset], isCenter: (ix === 1 && iy === 1) },
+        { face: 'B', dir: '-z', cond: iz === 0, rot: [0, Math.PI, 0], pos: [0, 0, -tileOffset], isCenter: (ix === 1 && iy === 1) },
+        { face: 'R', dir: '+x', cond: ix === 2, rot: [0, Math.PI / 2, 0], pos: [tileOffset, 0, 0], isCenter: (iy === 1 && iz === 1) },
+        { face: 'L', dir: '-x', cond: ix === 0, rot: [0, -Math.PI / 2, 0], pos: [-tileOffset, 0, 0], isCenter: (iy === 1 && iz === 1) }
+      ];
+
+      faces.forEach((f) => {
+        if (f.cond) {
+          const fIdx = getFaceletIndex(f.face, ix, iy, iz);
+          const currentColor = this.customCubeFacelets[fIdx];
+          const isCenter = f.isCenter;
+
+          let tileColor = 0x151821; // Dark matte black unpainted tile
+          if (isCenter) {
+            tileColor = this.colors[f.face];
+          } else if (currentColor && currentColor !== 'X') {
+            tileColor = this.colors[currentColor];
+          }
+
+          let mat;
+          if (isCenter && f.face === 'U') {
+            mat = new THREE.MeshStandardMaterial({
+              map: this.ganLogoTex,
+              roughness: 0.22,
+              metalness: 0.08
+            });
+          } else {
+            mat = new THREE.MeshStandardMaterial({
+              color: tileColor,
+              roughness: 0.25,
+              metalness: 0.08
+            });
+          }
+
+          const tile = new THREE.Mesh(tileGeo, mat);
+          tile.position.set(...f.pos);
+          tile.rotation.set(...f.rot);
+          tile.userData = {
+            isCustomSticker: true,
+            faceletIndex: fIdx,
+            face: f.face,
+            isCenter: isCenter
+          };
+          cubie.add(tile);
+        }
+      });
+    }
+
+    // --- Paint Facelet in 3D and 2D Unfold ---
+    paintFacelet(index, colorCode) {
+      if (index === 4 || index === 13 || index === 22 || index === 31 || index === 40 || index === 49) {
+        this.showToast('Центральные наклейки определяют стороны кубика и зафиксированы!');
+        return;
+      }
+
+      const newCode = colorCode === 'eraser' ? 'X' : colorCode;
+      this.customCubeFacelets[index] = newCode;
+
+      // Update 3D tile material
+      const targetColor = newCode === 'X' ? 0x151821 : this.colors[newCode];
+      for (let cubie of this.cubies) {
+        for (let child of cubie.children) {
+          if (child.userData && child.userData.faceletIndex === index) {
+            child.material.color.setHex(targetColor);
+            child.scale.set(1.2, 1.2, 1.2);
+            setTimeout(() => {
+              if (child) child.scale.set(1, 1, 1);
+            }, 120);
+            break;
+          }
+        }
+      }
+
+      // Update 2D unfold net square
+      const netTile = document.querySelector(`.unfold-tile[data-index="${index}"]`);
+      if (netTile) {
+        netTile.style.background = newCode === 'X' ? '#1e2433' : '#' + targetColor.toString(16).padStart(6, '0');
+      }
+
+      this.updatePaletteCounters();
+      this.sound.playClick();
+    }
+
+    // --- Render Interactive 2D Unfolded Net ---
+    render2DNet() {
+      const container = document.getElementById('unfoldNetGrid');
+      if (!container) return;
+      container.innerHTML = '';
+
+      // Standard Cross Layout (3 rows x 4 cols)
+      const layout = [
+        [null, 'U', null, null],
+        ['L', 'F', 'R', 'B'],
+        [null, 'D', null, null]
+      ];
+
+      layout.forEach((row) => {
+        row.forEach((face) => {
+          if (!face) {
+            const emptyCell = document.createElement('div');
+            emptyCell.className = 'unfold-cell-empty';
+            container.appendChild(emptyCell);
+            return;
+          }
+
+          const faceBox = document.createElement('div');
+          faceBox.className = 'unfold-face';
+
+          const label = document.createElement('span');
+          label.className = 'unfold-face-label';
+          label.innerText = face;
+          faceBox.appendChild(label);
+
+          for (let r = 0; r < 3; r++) {
+            for (let c = 0; c < 3; c++) {
+              let idx = -1;
+              if (face === 'U') idx = r * 3 + c;
+              else if (face === 'D') idx = 27 + r * 3 + c;
+              else if (face === 'F') idx = 18 + r * 3 + c;
+              else if (face === 'B') idx = 45 + r * 3 + c;
+              else if (face === 'R') idx = 9 + r * 3 + c;
+              else if (face === 'L') idx = 36 + r * 3 + c;
+
+              const tileBtn = document.createElement('button');
+              tileBtn.className = 'unfold-tile';
+              tileBtn.setAttribute('data-index', idx);
+
+              const isCenter = (r === 1 && c === 1);
+              if (isCenter) {
+                tileBtn.classList.add('center-tile');
+                tileBtn.setAttribute('title', `Центр ${face}`);
+              } else {
+                tileBtn.setAttribute('title', `Грань ${face}, плитка ${r * 3 + c + 1}`);
+              }
+
+              const code = this.customCubeFacelets[idx];
+              if (code && code !== 'X') {
+                const hex = '#' + this.colors[code].toString(16).padStart(6, '0');
+                tileBtn.style.background = hex;
+              } else {
+                tileBtn.style.background = '#1e2433';
+              }
+
+              tileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.paintFacelet(idx, this.activePaletteColor);
+              });
+
+              faceBox.appendChild(tileBtn);
+            }
+          }
+
+          container.appendChild(faceBox);
+        });
+      });
+    }
+
+    // --- Update Palette Counters (9 of each color) ---
+    updatePaletteCounters() {
+      const faces = ['U', 'D', 'F', 'B', 'R', 'L'];
+      let totalPainted = 0;
+
+      faces.forEach((f) => {
+        const count = this.customCubeFacelets.filter((c) => c === f).length;
+        totalPainted += count;
+
+        const countEl = document.getElementById(`count-${f}`);
+        const swatchBtn = document.querySelector(`.palette-swatch[data-color="${f}"]`);
+
+        if (countEl) countEl.innerText = `${count}/9`;
+        if (swatchBtn) {
+          swatchBtn.classList.toggle('completed', count === 9);
+        }
+      });
+
+      const paintedCountEl = document.getElementById('paintedCount');
+      if (paintedCountEl) paintedCountEl.innerText = totalPainted;
+    }
+
+    // --- True Two-Phase Kociemba Custom Solver ---
+    solveCustomCube() {
+      if (!window.min2phase) {
+        this.showToast('Загрузка решателя Kociemba, подождите секунду...');
+        return;
+      }
+
+      const unpainted = this.customCubeFacelets.filter((c) => c === 'X').length;
+      if (unpainted > 0) {
+        this.showToast(`Осталось закрасить ${unpainted} наклеек!`);
+        return;
+      }
+
+      const faces = ['U', 'D', 'F', 'B', 'R', 'L'];
+      for (let f of faces) {
+        const count = this.customCubeFacelets.filter((c) => c === f).length;
+        if (count !== 9) {
+          this.showToast(`Цвета ${f} должно быть ровно 9 штук (сейчас ${count})!`);
+          return;
+        }
+      }
+
+      this.showToast('⚡ Анализ кубика и расчет формулы...');
+
+      const faceletStr = this.customCubeFacelets.join('');
+      const sol = window.min2phase.solve(faceletStr);
+
+      if (!sol || sol.trim().length === 0) {
+        this.showToast('Кубик уже собран! 🏆');
+        this.celebrateVictory();
+        return;
+      }
+
+      if (sol.startsWith('Error')) {
+        const code = sol.trim();
+        let msg = 'Проверьте раскраску кубика!';
+        if (code === 'Error 1') msg = 'Неверное количество цветов: каждого должно быть ровно по 9!';
+        else if (code === 'Error 2' || code === 'Error 4') msg = 'Неправильное сочетание наклеек на углах или ребрах!';
+        else if (code === 'Error 3') msg = 'Одно ребро перевернуто! Физически невозможно собрать без разборки кубика.';
+        else if (code === 'Error 5') msg = 'Один угол перекручен! Поправьте цвета угловых наклеек.';
+        else if (code === 'Error 6') msg = 'Ошибка четности (паритет). Проверьте правильность раскраски.';
+        else msg = 'Ошибка конфигурации: такой узор кубика не существует в реальности.';
+        this.showToast(msg);
+        return;
+      }
+
+      // Parse moves
+      this.customSolutionMoves = sol.trim().split(/\s+/).filter(Boolean);
+      this.customSolutionStep = 0;
+
+      // Render Solution HUD
+      this.renderSolutionHUD();
+
+      // Switch bottom panels
+      document.getElementById('customColoringActions').style.display = 'none';
+      document.getElementById('customColoringBanner').style.display = 'none';
+      document.getElementById('customPlaybackActions').style.display = 'grid';
+      document.getElementById('solutionHUD').style.display = 'block';
+
+      // Show long arrow for first move
+      this.showLongArrowForStep(0);
+
+      this.showToast(`Найдено решение: ${this.customSolutionMoves.length} ходов!`);
+      this.sound.playVictory();
+    }
+
+    renderSolutionHUD() {
+      const scrollWrap = document.getElementById('hudFormulaScroll');
+      if (!scrollWrap) return;
+      scrollWrap.innerHTML = '';
+
+      document.getElementById('hudMoveCountBadge').innerText = `${this.customSolutionMoves.length} ходов`;
+
+      this.customSolutionMoves.forEach((move, idx) => {
+        const token = document.createElement('span');
+        token.className = 'hud-token';
+        token.setAttribute('data-step', idx);
+        token.innerText = move;
+        if (idx === this.customSolutionStep) token.classList.add('active');
+
+        token.addEventListener('click', () => {
+          this.jumpToSolutionStep(idx);
+        });
+
+        scrollWrap.appendChild(token);
+      });
+
+      this.updateHUDStepText(this.customSolutionStep);
+    }
+
+    updateHUDStepText(stepIndex) {
+      if (stepIndex >= this.customSolutionMoves.length) {
+        document.getElementById('hudStepBadge').innerText = 'Финиш!';
+        document.getElementById('hudStepText').innerText = 'Поздравляем! Ваш кубик полностью собран! 🏆';
+        return;
+      }
+
+      const move = this.customSolutionMoves[stepIndex];
+      document.getElementById('hudStepBadge').innerText = `Шаг ${stepIndex + 1} из ${this.customSolutionMoves.length}: ${move}`;
+      document.getElementById('hudStepText').innerText = this.getMoveDescription(move);
+
+      document.querySelectorAll('.hud-token').forEach((t, i) => {
+        t.classList.toggle('active', i === stepIndex);
+        t.classList.toggle('completed', i < stepIndex);
+        if (i === stepIndex) {
+          t.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
+      });
+    }
+
+    showLongArrowForStep(stepIndex) {
+      this.clearLongArrow();
+      this.updateHUDStepText(stepIndex);
+
+      if (stepIndex >= this.customSolutionMoves.length) {
+        this.showToast('Кубик в реальном мире собран! 🏆');
+        this.celebrateVictory();
+        return;
+      }
+
+      const move = this.customSolutionMoves[stepIndex];
+      const base = move[0];
+      const isPrime = move.includes("'");
+      const isDouble = move.includes("2");
+
+      let face = '+y';
+      switch (base) {
+        case 'U': face = '+y'; break;
+        case 'D': face = '-y'; break;
+        case 'F': face = '+z'; break;
+        case 'B': face = '-z'; break;
+        case 'R': face = '+x'; break;
+        case 'L': face = '-x'; break;
+      }
+
+      const clockwise = !isPrime;
+      const arrowObj = this.createLongCurvedArrow(face, clockwise, isDouble, move);
+      this.longArrowGroup.add(arrowObj);
+    }
+
+    stepNextSolution() {
+      if (this.isAnimating) return;
+      if (this.customSolutionStep >= this.customSolutionMoves.length) {
+        this.showToast('Кубик уже полностью собран!');
+        return;
+      }
+
+      const move = this.customSolutionMoves[this.customSolutionStep];
+      this.executeNotationMove(move, false, 220, () => {
+        this.customSolutionStep++;
+        this.showLongArrowForStep(this.customSolutionStep);
+      });
+    }
+
+    stepPrevSolution() {
+      if (this.isAnimating) return;
+      if (this.customSolutionStep <= 0) {
+        this.showToast('Вы в самом начале решения');
+        return;
+      }
+
+      this.jumpToSolutionStep(this.customSolutionStep - 1);
+    }
+
+    jumpToSolutionStep(targetIndex) {
+      if (this.isAnimating) return;
+      if (this.isAutoPlayingSolution) this.toggleAutoPlaySolution();
+
+      // Reset cube to initial painted state
+      this.buildCustomBlackCube();
+
+      // Execute all moves up to targetIndex instantly
+      for (let i = 0; i < targetIndex; i++) {
+        const m = this.customSolutionMoves[i];
+        this.executeNotationMove(m, false, 0);
+      }
+
+      this.customSolutionStep = targetIndex;
+      this.showLongArrowForStep(this.customSolutionStep);
+    }
+
+    toggleAutoPlaySolution() {
+      if (this.isAutoPlayingSolution) {
+        this.isAutoPlayingSolution = false;
+        if (this.autoPlayTimer) clearInterval(this.autoPlayTimer);
+        document.getElementById('autoPlayText').innerText = 'Авто-сборка';
+        document.getElementById('autoPlayIcon').innerText = '▶';
+        return;
+      }
+
+      if (this.customSolutionStep >= this.customSolutionMoves.length) {
+        this.jumpToSolutionStep(0);
+      }
+
+      this.isAutoPlayingSolution = true;
+      document.getElementById('autoPlayText').innerText = 'Пауза';
+      document.getElementById('autoPlayIcon').innerText = '⏸';
+
+      const runAutoStep = () => {
+        if (!this.isAutoPlayingSolution) return;
+        if (this.customSolutionStep >= this.customSolutionMoves.length) {
+          this.toggleAutoPlaySolution();
+          return;
+        }
+
+        const move = this.customSolutionMoves[this.customSolutionStep];
+        this.executeNotationMove(move, false, 240, () => {
+          this.customSolutionStep++;
+          this.showLongArrowForStep(this.customSolutionStep);
+
+          if (this.customSolutionStep < this.customSolutionMoves.length && this.isAutoPlayingSolution) {
+            setTimeout(runAutoStep, 800);
+          } else {
+            this.toggleAutoPlaySolution();
+          }
+        });
+      };
+
+      runAutoStep();
+    }
+
+    fillSampleScramble() {
+      const sampleScrambles = [
+        "R U R' U' F2 L D2 B' R2 U B2 D' F' L2",
+        "D B' R L U B R F2 U2 L2 U' L2 D' B2",
+        "F2 D' L2 B2 U2 F2 D R2 B2 U' R' F D B'",
+        "R2 D2 F2 L2 U B2 D' F2 U' R2 B' L D F'",
+        "B2 R2 F2 U' L2 D B2 D' B2 D' L' U' F' R2"
+      ];
+      const scr = sampleScrambles[Math.floor(Math.random() * sampleScrambles.length)];
+      if (window.min2phase) {
+        const facelets = window.min2phase.fromScramble(scr);
+        for (let i = 0; i < 54; i++) {
+          this.customCubeFacelets[i] = facelets[i];
+        }
+        this.buildCustomBlackCube();
+        this.render2DNet();
+        this.updatePaletteCounters();
+        this.showToast('Загружен реальный пример! Нажмите «РЕШИТЬ КУБИК».');
+      }
+    }
+
+    fillSolvedCustomState() {
+      const solved = 'UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB';
+      for (let i = 0; i < 54; i++) {
+        this.customCubeFacelets[i] = solved[i];
+      }
+      this.buildCustomBlackCube();
+      this.render2DNet();
+      this.updatePaletteCounters();
+      this.showToast('Кубик заполнен в собранном состоянии!');
+    }
+
+    clearCustomCube() {
+      this.customCubeFacelets = new Array(54).fill('X');
+      this.customCubeFacelets[4] = 'U';
+      this.customCubeFacelets[13] = 'R';
+      this.customCubeFacelets[22] = 'F';
+      this.customCubeFacelets[31] = 'D';
+      this.customCubeFacelets[40] = 'L';
+      this.customCubeFacelets[49] = 'B';
+      this.buildCustomBlackCube();
+      this.render2DNet();
+      this.updatePaletteCounters();
+      this.showToast('Кубик сброшен в черный цвет.');
+    }
+
+    returnToColoringMode() {
+      if (this.isAutoPlayingSolution) this.toggleAutoPlaySolution();
+      this.clearLongArrow();
+      document.getElementById('solutionHUD').style.display = 'none';
+      document.getElementById('customPlaybackActions').style.display = 'none';
+      document.getElementById('customColoringActions').style.display = 'grid';
+      document.getElementById('customColoringBanner').style.display = 'flex';
+      this.buildCustomBlackCube();
+      this.render2DNet();
+      this.updatePaletteCounters();
+      this.showToast('Режим раскраски активен.');
+    }
+
+    getMoveDescription(move) {
+      const descriptions = {
+        'U': 'Поверните верхнюю (желтую) грань ВЛЕВО (по часовой стрелке)',
+        "U'": 'Поверните верхнюю (желтую) грань ВПРАВО (против часовой стрелки)',
+        'U2': 'Поверните верхнюю (желтую) грань на 180° (два раза)',
+
+        'D': 'Поверните нижнюю (белую) грань ВПРАВО (по часовой стрелке)',
+        "D'": 'Поверните нижнюю (белую) грань ВЛЕВО (против часовой стрелки)',
+        'D2': 'Поверните нижнюю (белую) грань на 180° (два раза)',
+
+        'F': 'Поверните переднюю (зеленую) грань ВПРАВО (по часовой стрелке)',
+        "F'": 'Поверните переднюю (зеленую) грань ВЛЕВО (против часовой стрелки)',
+        'F2': 'Поверните переднюю (зеленую) грань на 180° (два раза)',
+
+        'B': 'Поверните заднюю (синюю) грань ВЛЕВО (по часовой стрелке)',
+        "B'": 'Поверните заднюю (синюю) грань ВПРАВО (против часовой стрелки)',
+        'B2': 'Поверните заднюю (синюю) грань на 180° (два раза)',
+
+        'R': 'Поверните правую (красную) грань ВВЕРХ (по часовой стрелке)',
+        "R'": 'Поверните правую (красную) грань ВНИЗ (против часовой стрелки)',
+        'R2': 'Поверните правую (красную) грань на 180° (два раза)',
+
+        'L': 'Поверните левую (оранжевую) грань ВНИЗ (по часовой стрелке)',
+        "L'": 'Поверните левую (оранжевую) грань ВВЕРХ (против часовой стрелки)',
+        'L2': 'Поверните левую (оранжевую) грань на 180° (два раза)'
+      };
+      return descriptions[move] || `Поверните грань ${move}`;
+    }
+
     // --- Main Render Loop ---
     animate() {
       requestAnimationFrame(() => this.animate());
@@ -1825,6 +2756,12 @@
           this.camera.position.copy(this.targetCameraPos);
           this.isTransitioningCamera = false;
         }
+      }
+
+      if (this.longArrowGroup && this.longArrowGroup.children.length > 0) {
+        const time = performance.now() * 0.005;
+        const scale = 1.0 + 0.04 * Math.sin(time);
+        this.longArrowGroup.scale.set(scale, scale, scale);
       }
 
       this.controls.update();
