@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Кубик Рубика 3D — Играй, Разбирай и Собирай</title>
+  <meta name="description" content="Интерактивный 3D Кубик Рубика онлайн: 2x2, 3x3, 4x4, 5x5 и Пирамидка. Кнопки разобрать и собрать, таймер спидкубинга и плавная 3D анимация.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎲</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+  <!-- Three.js and OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+</head>
+<body>
+  <div id="app">
+    <!-- Top Header Bar -->
+    <header class="top-nav">
+      <div class="logo-group">
+        <div class="cube-icon">🎲</div>
+        <div class="title-wrap">
+          <h1>КУБИК РУБИКА <span>3D</span></h1>
+          <span class="badge" id="cubeSizeBadge">3x3x3</span>
+        </div>
+      </div>
+
+      <!-- Puzzle Type Selector -->
+      <div class="puzzle-selector">
+        <button class="type-btn" data-type="2">2x2</button>
+        <button class="type-btn active" data-type="3">3x3</button>
+        <button class="type-btn" data-type="4">4x4</button>
+        <button class="type-btn" data-type="5">5x5</button>
+        <button class="type-btn" data-type="pyraminx">Пирамидка</button>
+      </div>
+
+      <!-- Quick Options -->
+      <div class="header-actions">
+        <button id="themeToggleBtn" class="icon-btn" title="Сменить тему оформления">
+          🎨
+        </button>
+        <button id="soundToggleBtn" class="icon-btn" title="Звук: Вкл/Выкл">
+          🔊
+        </button>
+        <button id="helpBtn" class="icon-btn" title="Управление и подсказки">
+          ❓
+        </button>
+      </div>
+    </header>
+
+    <!-- Main 3D Canvas Container -->
+    <main id="canvas-container">
+      <canvas id="cubeCanvas"></canvas>
+
+      <!-- Scramble Notation Overlay -->
+      <div id="scrambleDisplay" class="scramble-box" style="display: none;">
+        <span class="scramble-label">Скрамбл:</span>
+        <span id="scrambleFormula" class="scramble-formula"></span>
+      </div>
+
+      <!-- Status Toast / Alert -->
+      <div id="statusToast" class="status-toast"></div>
+
+      <!-- Speedcubing Timer -->
+      <div id="timerContainer" class="timer-card">
+        <div class="timer-digits" id="timerDigits">00:00.00</div>
+        <div class="timer-controls">
+          <button id="timerToggleBtn" class="timer-btn">⏱ Старт / Стоп (Space)</button>
+          <button id="timerResetBtn" class="timer-btn timer-btn-sub">Сброс</button>
+        </div>
+        <div class="timer-stats">
+          <span>Ходов: <b id="moveCount">0</b></span>
+          <span>Лучшее: <b id="bestTime">--:--</b></span>
+        </div>
+      </div>
+    </main>
+
+    <!-- Floating Bottom Control Panel -->
+    <footer class="bottom-panel">
+      <!-- Main Action Buttons -->
+      <div class="primary-actions">
+        <button id="scrambleBtn" class="action-btn scramble" title="Перемешать кубик случайными ходами">
+          <span class="btn-icon">🔀</span>
+          <span class="btn-text">
+            <strong>Разобрать</strong>
+            <small>Случайный скрамбл</small>
+          </span>
+        </button>
+
+        <button id="solveBtn" class="action-btn solve" title="Автоматически собрать кубик обратно">
+          <span class="btn-icon">✨</span>
+          <span class="btn-text">
+            <strong>Собрать</strong>
+            <small>Пошаговое решение</small>
+          </span>
+        </button>
+
+        <button id="resetBtn" class="action-btn reset" title="Мгновенно вернуть в собранное состояние">
+          <span class="btn-icon">🔄</span>
+          <span class="btn-text">
+            <strong>Сброс</strong>
+            <small>В исходное состояние</small>
+          </span>
+        </button>
+      </div>
+
+      <!-- Quick Virtual Face Rotation Buttons -->
+      <div class="virtual-controls" id="virtualControls">
+        <div class="virtual-row">
+          <span class="row-label">Грани:</span>
+          <button class="turn-btn" data-move="U">U</button>
+          <button class="turn-btn" data-move="U'">U'</button>
+          <button class="turn-btn" data-move="D">D</button>
+          <button class="turn-btn" data-move="D'">D'</button>
+          <button class="turn-btn" data-move="L">L</button>
+          <button class="turn-btn" data-move="L'">L'</button>
+          <button class="turn-btn" data-move="R">R</button>
+          <button class="turn-btn" data-move="R'">R'</button>
+          <button class="turn-btn" data-move="F">F</button>
+          <button class="turn-btn" data-move="F'">F'</button>
+          <button class="turn-btn" data-move="B">B</button>
+          <button class="turn-btn" data-move="B'">B'</button>
+          <button id="undoMoveBtn" class="turn-btn turn-btn-undo" title="Отменить ход">↩ Назад</button>
+        </div>
+      </div>
+
+      <!-- Speed & View Slider bar -->
+      <div class="secondary-bar">
+        <div class="slider-group">
+          <label for="speedSelect">Скорость:</label>
+          <select id="speedSelect" class="styled-select">
+            <option value="400">Плавная (0.4s)</option>
+            <option value="200" selected>Нормальная (0.2s)</option>
+            <option value="90">Быстрая (0.09s)</option>
+            <option value="0">Мгновенно</option>
+          </select>
+        </div>
+        <div class="view-group">
+          <button id="resetCameraBtn" class="text-btn">🎥 Сбросить камеру</button>
+          <button id="toggleControlsBtn" class="text-btn">⌨ Кнопки ходов</button>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Victory Modal -->
+    <div id="victoryModal" class="modal-backdrop" style="display: none;">
+      <div class="modal-card victory-card">
+        <div class="victory-icon">🏆</div>
+        <h2>КУБИК СОБРАН!</h2>
+        <p class="victory-subtitle">Поздравляем! Отличная сборка!</p>
+        <div class="victory-stats">
+          <div class="vstat">
+            <span class="vstat-num" id="modalTime">00:00.00</span>
+            <span class="vstat-label">Время</span>
+          </div>
+          <div class="vstat">
+            <span class="vstat-num" id="modalMoves">0</span>
+            <span class="vstat-label">Ходов</span>
+          </div>
+        </div>
+        <div class="modal-buttons">
+          <button id="modalScrambleBtn" class="action-btn scramble">🔀 Разобрать снова</button>
+          <button id="modalCloseBtn" class="action-btn reset">Закрыть</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal-backdrop" style="display: none;">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>📖 Как управлять кубиком</h3>
+          <button id="helpCloseBtn" class="close-btn">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="help-section">
+            <h4>🖱 Управление мышью / пальцем</h4>
+            <ul>
+              <li><strong>Вращение кубика:</strong> зажмите пустую область фона и потяните, чтобы повернуть камеру.</li>
+              <li><strong>Вращение грани:</strong> зажмите грань кубика и потяните её в нужную сторону.</li>
+              <li><strong>Масштаб:</strong> колесико мыши или жест щипка двумя пальцами.</li>
+            </ul>
+          </div>
+          <div class="help-section">
+            <h4>⌨ Горячие клавиши (WCA нотация)</h4>
+            <div class="keys-grid">
+              <div><kbd>U</kbd> Вверх (по часовой)</div>
+              <div><kbd>Shift + U</kbd> Вверх (против часовой)</div>
+              <div><kbd>D</kbd> Низ (Down)</div>
+              <div><kbd>Shift + D</kbd> Низ (D')</div>
+              <div><kbd>L</kbd> Левая (Left)</div>
+              <div><kbd>Shift + L</kbd> Левая (L')</div>
+              <div><kbd>R</kbd> Правая (Right)</div>
+              <div><kbd>Shift + R</kbd> Правая (R')</div>
+              <div><kbd>F</kbd> Передняя (Front)</div>
+              <div><kbd>Shift + F</kbd> Передняя (F')</div>
+              <div><kbd>B</kbd> Задняя (Back)</div>
+              <div><kbd>Shift + B</kbd> Задняя (B')</div>
+              <div><kbd>Пробел</kbd> Старт / Стоп таймера</div>
+              <div><kbd>Ctrl + Z</kbd> Отменить последний ход</div>
+            </div>
+          </div>
+          <div class="help-section">
+            <h4>✨ Волшебные кнопки</h4>
+            <p><strong>Разобрать:</strong> генерирует случайный скрамбл и анимирует перемешивание.</p>
+            <p><strong>Собрать:</strong> автоматически решает кубик шаг за шагом, отматывая ходы обратно к идеальному состоянию!</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="helpOkBtn" class="action-btn solve">Понятно, играть!</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="cube.js"></script>
+</body>
+</html>
