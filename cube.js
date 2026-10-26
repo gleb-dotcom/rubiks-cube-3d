@@ -841,7 +841,21 @@
       // Update on-screen selection badge
       const badge = document.getElementById('selectionText');
       if (badge) {
-        badge.innerHTML = `Выбрана грань: <b>${faceName}</b> • Нажимайте ⬆️ ⬇️ ⬅️ ➡️ на клавиатуре`;
+        badge.innerHTML = `Выбрана грань: <b>${faceName}</b> • Стрелки джойстика или ⬆️ ⬇️ ⬅️ ➡️`;
+      }
+
+      // Update mobile D-Pad center face icon
+      const dpadIcon = document.getElementById('dpadFaceIcon');
+      if (dpadIcon) {
+        const faceIcons = {
+          '+y': '🟡',
+          '-y': '⚪',
+          '+z': '🟢',
+          '-z': '🔵',
+          '+x': '🟠',
+          '-x': '🔴'
+        };
+        dpadIcon.innerText = faceIcons[faceDir] || '🟢';
       }
 
       this.renderSelectedFaceArrows();
@@ -1703,6 +1717,7 @@
         this.isPointerDown = true;
         this.dragThresholdPassed = false;
         this.pointerDownPos.set(e.clientX, e.clientY);
+        this.lastPointerType = e.pointerType || 'mouse';
       });
 
       canvas.addEventListener('pointermove', (e) => {
@@ -1712,7 +1727,8 @@
 
         if (this.isPointerDown) {
           const dist = Math.hypot(e.clientX - this.pointerDownPos.x, e.clientY - this.pointerDownPos.y);
-          if (dist > 6) {
+          const threshold = this.lastPointerType === 'touch' ? 14 : 6;
+          if (dist > threshold) {
             this.dragThresholdPassed = true;
             tooltip.style.display = 'none';
             this.clearHighlightSlice();
@@ -2067,6 +2083,51 @@
         });
       }
 
+      // Mobile On-Screen Directional D-Pad Buttons
+      document.querySelectorAll('.dpad-btn').forEach((btn) => {
+        const handleDpadPress = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const key = btn.getAttribute('data-dpad');
+          if (key) {
+            btn.classList.add('pressed');
+            setTimeout(() => btn.classList.remove('pressed'), 120);
+            this.sound.playClick();
+            this.handleArrowKeyPress(key);
+          }
+        };
+        btn.addEventListener('pointerdown', handleDpadPress);
+      });
+
+      // Mobile D-Pad Center Button: cycle selected face
+      const dpadCenter = document.getElementById('dpadCenter');
+      if (dpadCenter) {
+        dpadCenter.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const faces = ['+z', '+x', '-z', '-x', '+y', '-y'];
+          const current = this.selectedFace ? this.selectedFace.faceDir : '+z';
+          const nextIdx = (faces.indexOf(current) + 1) % faces.length;
+          this.selectFace(faces[nextIdx]);
+          this.sound.playClick();
+          this.showToast(`Выбрана: ${this.selectedFace.name}`);
+        });
+      }
+
+      // Toggle D-Pad Button
+      const toggleDpadBtn = document.getElementById('toggleDpadBtn');
+      if (toggleDpadBtn) {
+        toggleDpadBtn.addEventListener('click', () => {
+          const dpad = document.getElementById('mobileDpad');
+          if (dpad) {
+            const isHidden = dpad.style.display === 'none';
+            dpad.style.display = isHidden ? 'flex' : 'none';
+            toggleDpadBtn.classList.toggle('active', isHidden);
+            this.showToast(isHidden ? 'Экранный джойстик включен' : 'Экранный джойстик скрыт');
+          }
+        });
+      }
+
       // Keyboard Controls
       window.addEventListener('keydown', (e) => {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
@@ -2133,6 +2194,7 @@
       const simBadge = document.getElementById('selectionBadge');
       const simTimer = document.getElementById('timerContainer');
       const simBottom = document.querySelector('.bottom-panel');
+      const mobileDpad = document.getElementById('mobileDpad');
 
       const solverHUD = document.getElementById('solutionHUD');
       const solverBanner = document.getElementById('customColoringBanner');
@@ -2145,6 +2207,7 @@
         if (simBadge) simBadge.style.display = 'flex';
         if (simTimer) simTimer.style.display = 'block';
         if (simBottom) simBottom.style.display = 'flex';
+        if (mobileDpad) mobileDpad.style.display = 'flex';
 
         if (solverHUD) solverHUD.style.display = 'none';
         if (solverBanner) solverBanner.style.display = 'none';
@@ -2162,10 +2225,18 @@
         if (simBadge) simBadge.style.display = 'none';
         if (simTimer) simTimer.style.display = 'none';
         if (simBottom) simBottom.style.display = 'none';
+        if (mobileDpad) mobileDpad.style.display = 'none';
 
         if (solverBanner) solverBanner.style.display = 'flex';
         if (solverUnfold) solverUnfold.style.display = 'block';
         if (solverPanel) solverPanel.style.display = 'flex';
+
+        // Auto-collapse 2D net on mobile to keep 3D cube spacious
+        if (window.innerWidth <= 768 && solverUnfold) {
+          solverUnfold.classList.add('collapsed');
+          const toggleBtn = document.getElementById('toggleUnfoldBtn');
+          if (toggleBtn) toggleBtn.innerText = '+';
+        }
 
         if (this.customSolutionMoves.length > 0) {
           if (solverHUD) solverHUD.style.display = 'block';

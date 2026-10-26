@@ -2,7 +2,10 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#080c16">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>GAN Cube 3D — Премиальный 3D Кубик Рубика с управлением стрелками</title>
   <meta name="description" content="Премиальный 3D Кубик Рубика в стиле GAN Cube. Управление выбранной гранью стрелками на клавиатуре, желтый цвет сверху, белый снизу, полный обзор 360°, кнопки разобрать и собрать.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎲</text></svg>">
@@ -114,9 +117,36 @@
 
       <!-- Floating Zoom and 360 Inspection Controls -->
       <div class="view-controls-floating">
-        <button id="zoomInBtn" class="floating-btn" title="Приблизить кубик">➕ Приблизить</button>
-        <button id="zoomOutBtn" class="floating-btn" title="Отдалить кубик сильнее">➖ Отдалить</button>
-        <button id="autoRotateBtn" class="floating-btn" title="Включить плавный авто-обзор на 360°">🔄 Авто 360°</button>
+        <button id="zoomInBtn" class="floating-btn" title="Приблизить кубик" aria-label="Приблизить">
+          <span class="btn-symbol">➕</span><span class="floating-btn-text"> Приблизить</span>
+        </button>
+        <button id="zoomOutBtn" class="floating-btn" title="Отдалить кубик сильнее" aria-label="Отдалить">
+          <span class="btn-symbol">➖</span><span class="floating-btn-text"> Отдалить</span>
+        </button>
+        <button id="autoRotateBtn" class="floating-btn" title="Включить плавный авто-обзор на 360°" aria-label="Авто 360°">
+          <span class="btn-symbol">🔄</span><span class="floating-btn-text"> Авто 360°</span>
+        </button>
+      </div>
+
+      <!-- Mobile On-Screen Directional D-Pad (Экранный стрелочный джойстик) -->
+      <div id="mobileDpad" class="mobile-dpad" aria-label="Экранный стрелочный джойстик">
+        <button class="dpad-btn dpad-up" data-dpad="ArrowUp" aria-label="Повернуть выбранную грань вверх" title="Вверх (⬆️)">
+          <span class="dpad-arrow">▲</span>
+        </button>
+        <div class="dpad-middle">
+          <button class="dpad-btn dpad-left" data-dpad="ArrowLeft" aria-label="Повернуть выбранную грань влево" title="Влево (⬅️)">
+            <span class="dpad-arrow">◀</span>
+          </button>
+          <button class="dpad-center" id="dpadCenter" aria-label="Сменить выбранную грань" title="Нажмите чтобы переключить грань">
+            <span class="dpad-face-icon" id="dpadFaceIcon">🟢</span>
+          </button>
+          <button class="dpad-btn dpad-right" data-dpad="ArrowRight" aria-label="Повернуть выбранную грань вправо" title="Вправо (➡️)">
+            <span class="dpad-arrow">▶</span>
+          </button>
+        </div>
+        <button class="dpad-btn dpad-down" data-dpad="ArrowDown" aria-label="Повернуть выбранную грань вниз" title="Вниз (⬇️)">
+          <span class="dpad-arrow">▼</span>
+        </button>
       </div>
 
       <!-- Floating Direction Arrow Tooltip -->
@@ -233,8 +263,9 @@
           </select>
         </div>
         <div class="view-group">
-          <button id="resetCameraBtn" class="text-btn">🎥 Исходный вид</button>
-          <button id="toggleControlsBtn" class="text-btn">⌨ Кнопки нотации</button>
+          <button id="resetCameraBtn" class="text-btn">🎥 Вид</button>
+          <button id="toggleControlsBtn" class="text-btn">⌨ Нотация</button>
+          <button id="toggleDpadBtn" class="text-btn active" title="Включить/выключить экранный джойстик">🎮 Джойстик</button>
         </div>
       </div>
     </footer>
